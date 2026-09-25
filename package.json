@@ -1,0 +1,64 @@
+{
+  "name": "insumer-verify",
+  "version": "1.9.1",
+  "description": "Client-side verifier for InsumerAPI condition-based access attestations and wallet trust profiles. ECDSA P-256 signatures, condition hashes, block freshness, expiry. Zero dependencies.",
+  "type": "module",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "examples",
+    "keys",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node test.mjs && node test-jwt.mjs && node test-v2.mjs && node test-trust.mjs && node test-pq.mjs && node test-offline.mjs && node test-depth.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "condition-based-access",
+    "insumer",
+    "attestation",
+    "ecdsa",
+    "verification",
+    "blockchain",
+    "on-chain",
+    "web-crypto",
+    "ai-agents",
+    "token-gating",
+    "agent-trust"
+  ],
+  "author": "Douglas Borthwick",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/insumerapi/insumer-verify.git"
+  },
+  "bugs": {
+    "url": "https://github.com/insumerapi/insumer-verify/issues"
+  },
+  "homepage": "https://insumermodel.com/developers/",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@noble/post-quantum": "^0.7.1",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "@noble/post-quantum": "^0.7.1"
+  },
+  "peerDependenciesMeta": {
+    "@noble/post-quantum": {
+      "optional": true
+    }
+  }
+}

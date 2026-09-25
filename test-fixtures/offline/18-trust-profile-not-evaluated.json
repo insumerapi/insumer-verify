@@ -1,0 +1,1315 @@
+{
+  "vector": "18-trust-profile-not-evaluated",
+  "description": "A real trust profile from POST /v1/trust with only the EVM wallet supplied, so the checks that need a Solana, XRPL, Stellar or Sui wallet carry the not-evaluated marker.",
+  "note": "Real response, signed by the production ES256 key under kid insumer-trust-v2 (preimage \"insumer.trust.v2\" + \"\\n\" + the canonical JSON of the whole trust object, expiresAt inside it, no v member) and by the production ML-DSA-65 key under pqKid insumer-trust-pq1. Six checks in institutional_stablecoins could not be run because the wallet their chain needs was not supplied: each carries evaluated: false, reason wallet_not_provided, requires naming the request parameter that would let it run, met: false, and no chain anchor. They are counted in notEvaluatedCount on the dimension and totalNotEvaluated in the summary, never in passCount, failCount, totalPassed or totalFailed (specification 11.3). An unevaluated check is not a failure. It is a check the issuer states, inside the signed profile, that it did not run; a verifier treats it as neither met nor failed, and a freshness check skips it because there is no anchor to age. The marker is signed content: removing it, or rewriting the counts, breaks the signature. The recompute block covers every check in the profile; the six marker checks are the ones with anchor null. Expected pq status: verified.",
+  "options": {
+    "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
+  },
+  "recompute": [
+    {
+      "dimension": "governance",
+      "label": "UNI on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xef25c0e181817c3dbe44e5b9f55b67f06cd625fdcbdaf499ab32f2a1c7509150",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "governance",
+      "label": "AAVE on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xdf8dfc39c5f9d20774f65c0427f23162399ce47ab13540493879706812bc8360",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "governance",
+      "label": "ARB on Arbitrum",
+      "canonicalEvaluatedCondition": "{\"chainId\":42161,\"contractAddress\":\"0x912CE59144191C1204E64559FE8253a0e49E6548\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xcc0020fe53bcf6cbf2ce50eba74b9e2ebe86e052b98b193b8231253db232c4a1",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x1dde4ca9",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    },
+    {
+      "dimension": "governance",
+      "label": "OP on Optimism",
+      "canonicalEvaluatedCondition": "{\"chainId\":10,\"contractAddress\":\"0x4200000000000000000000000000000000000042\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x7286173e3d6248091039e9833d2ce4c9ca7b2c466dc92a7bdbf9f4439806485c",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x9525e75",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    },
+    {
+      "dimension": "nfts",
+      "label": "BAYC on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D\",\"operator\":\"gt\",\"threshold\":0,\"type\":\"nft_ownership\"}",
+      "conditionHash": "0xf20d2a07d91624ef8a9e884b339b217b127377b2d667885bd3f860f0b425a491",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "nfts",
+      "label": "Pudgy Penguins on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0xBd3531dA5CF5857e7CfAA92426877b022e612cf8\",\"operator\":\"gt\",\"threshold\":0,\"type\":\"nft_ownership\"}",
+      "conditionHash": "0x676b5f4c21131316fa6d0f72100955da9b4e43a51dc8efb461ebb10cee000378",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "nfts",
+      "label": "Wrapped CryptoPunks on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6\",\"operator\":\"gt\",\"threshold\":0,\"type\":\"nft_ownership\"}",
+      "conditionHash": "0xf8af667ce82e9ce3afacc7b497451cfe6100a27390a5552f6847cda9c6eff2f3",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "institutional_stablecoins",
+      "label": "EURCV on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0x5f7827fdeb7c20b443265fc2f40845b715385ff2\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x0686a9c43f56bd396a0182761ec161f8a8ff8e431fdfd696665cd9d9de3de26d",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "institutional_stablecoins",
+      "label": "USDCV on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0x5422374b27757da72d5265cc745ea906e0446634\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xa60ad35ecb39d5f783c01aaeb2449ba256f3d56aadaeab64159657922a438cdb",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "institutional_stablecoins",
+      "label": "EURCV on Solana",
+      "canonicalEvaluatedCondition": "{\"chainId\":\"solana\",\"contractAddress\":\"DghpMkatCiUsofbTmid3M3kAbDTPqDwKiYHnudXeGG52\",\"decimals\":2,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x279f273b5d7345a7da730bf2466f6cc4680b6c2cd2b2d8f2fc56000f84b8a0c1",
+      "reproduces": true,
+      "anchor": null,
+      "evaluated": false
+    },
+    {
+      "dimension": "institutional_stablecoins",
+      "label": "USDCV on Solana",
+      "canonicalEvaluatedCondition": "{\"chainId\":\"solana\",\"contractAddress\":\"8smindLdDuySY6i2bStQX9o8DVhALCXCMbNxD98unx35\",\"decimals\":2,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xba002b0e63c2a6ff36c50f6a6ea96ccf6ff408e02e93c0d48089fb125bdfe46b",
+      "reproduces": true,
+      "anchor": null,
+      "evaluated": false
+    },
+    {
+      "dimension": "institutional_stablecoins",
+      "label": "EURCV on XRPL",
+      "canonicalEvaluatedCondition": "{\"chainId\":\"xrpl\",\"contractAddress\":\"rUNaS5sqRuxZz6V7rBGhoSaZiVYA3ut4UL\",\"currency\":\"4555524356000000000000000000000000000000\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x96e23474627b9a6f751b425432d88d52714a7bd853ee9e1075f01d079f693afc",
+      "reproduces": true,
+      "anchor": null,
+      "evaluated": false
+    },
+    {
+      "dimension": "institutional_stablecoins",
+      "label": "USDC on Stellar (classic)",
+      "canonicalEvaluatedCondition": "{\"assetCode\":\"USDC\",\"chainId\":\"stellar\",\"contractAddress\":\"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xf2078292af116553fd01e4b662acd9476253fc628c85d23305f297b7dadf4d32",
+      "reproduces": true,
+      "anchor": null,
+      "evaluated": false
+    },
+    {
+      "dimension": "institutional_stablecoins",
+      "label": "BENJI on Stellar",
+      "canonicalEvaluatedCondition": "{\"assetCode\":\"BENJI\",\"chainId\":\"stellar\",\"contractAddress\":\"GBHNGLLIE3KWGKCHIKMHJ5HVZHYIK7WTBE4QF5PLAKL4CJGSEU7HZIW5\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x3d4608e304cd4aedb59cbcaad3c9452d6ca761b787e15f54ac02fb5bad28ac58",
+      "reproduces": true,
+      "anchor": null,
+      "evaluated": false
+    },
+    {
+      "dimension": "institutional_stablecoins",
+      "label": "USDC on Sui",
+      "canonicalEvaluatedCondition": "{\"chainId\":\"sui\",\"contractAddress\":\"0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xc5bda8eece2993f5cd475f3359065872b7995b03ae8179b8e080612447ce69a0",
+      "reproduces": true,
+      "anchor": null,
+      "evaluated": false
+    },
+    {
+      "dimension": "staking",
+      "label": "stETH on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xdb443b0fbcd41b4f9c27eb767f97ca07a2fdadc615d4a11a96d55345b9bef7c3",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "staking",
+      "label": "rETH on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0xae78736Cd615f374D3085123A210448E74Fc6393\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xdc4f80d4bd9f56ee0334ef9c53ecefe4529c35a8584247099dcb8de0db78d31b",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "staking",
+      "label": "cbETH on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0xBe9895146f7AF43049ca1c1AE358B0541Ea49704\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xb6c64e48fa9f8c10336da7beb33d323695958fa2a366691cc46ea905c4f0aae3",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x27254c13e7bfb9e96dc90f7c54a7d2b05a5647fd38a00b2dc1bff58a236bbebf",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Base",
+      "canonicalEvaluatedCondition": "{\"chainId\":8453,\"contractAddress\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x39c2094ef29fa7ea94e2db2ba02734ff06db035f47b1245fddd18be9e0e2d2f3",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x3071ce0",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Polygon",
+      "canonicalEvaluatedCondition": "{\"chainId\":137,\"contractAddress\":\"0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x2f27c5ada76e26a8128be4c8ab6e4f18462125f8e62e1127325648764d895ad3",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x58ce5bd",
+        "blockTimestamp": "2026-09-02T21:35:33.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Arbitrum",
+      "canonicalEvaluatedCondition": "{\"chainId\":42161,\"contractAddress\":\"0xaf88d065e77c8cC2239327C5EDb3A432268e5831\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x69d52b75f8158ecb3fcb3ebb927bdb3ab46b7dabc41e2a4ffb80e3a63693fcf1",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x1dde4ca9",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Optimism",
+      "canonicalEvaluatedCondition": "{\"chainId\":10,\"contractAddress\":\"0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xe7cbb40729f6418a140ab1ba1ed2a6503dc1b308a5a59d023586f049c290f431",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x9525e75",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Avalanche",
+      "canonicalEvaluatedCondition": "{\"chainId\":43114,\"contractAddress\":\"0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xd7314b245f11bebe5edb8996bef62338a75cb4444154004e881af886617be5aa",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x59f2004",
+        "blockTimestamp": "2026-09-02T21:35:30.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on BNB Chain",
+      "canonicalEvaluatedCondition": "{\"chainId\":56,\"contractAddress\":\"0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x7a4a14eeb72f26d63ae43bd34d1b157e1ea28816637a986f95d02172c4a58fe5",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x7211368",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Sonic",
+      "canonicalEvaluatedCondition": "{\"chainId\":146,\"contractAddress\":\"0x29219dd400f2Bf60E5a23d13Be72B486D4038894\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x7be940a7d4d138033f148f6a440f3cafeaeb59b5b160e176423ad71be395c915",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x4af4ebe",
+        "blockTimestamp": "2026-09-02T21:35:29.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on World Chain",
+      "canonicalEvaluatedCondition": "{\"chainId\":480,\"contractAddress\":\"0x79A02482A880bCe3F13E09da970dC34dB4cD24D1\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xcd2c1e07e7c2c4d738d969a0f0ff818f4870b458c228924415dca1178c9f7f45",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x20ecde6",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Linea",
+      "canonicalEvaluatedCondition": "{\"chainId\":59144,\"contractAddress\":\"0x176211869cA2b568f2A7D4EE941E073a821EE1ff\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xbabd8bda4f43e4d419a1de7c7cc4d15013db6c4eb69bbee72608aceaef8df0b9",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x1e6fe86",
+        "blockTimestamp": "2026-09-02T21:35:11.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on ZKsync",
+      "canonicalEvaluatedCondition": "{\"chainId\":324,\"contractAddress\":\"0x1d17CBcF0D6D143135aE902365D2E5e2A16538D4\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x889c7e4de2ed508109f3a31f0ea7bcdab551a22d80534fd458f8d920a37bb51f",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x447ed22",
+        "blockTimestamp": "2026-09-02T21:35:20.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Celo",
+      "canonicalEvaluatedCondition": "{\"chainId\":42220,\"contractAddress\":\"0xcebA9300f2b948710d2653dD7B07f33A8B32118C\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x57a392a94f72fd432077ed3cd52ce772a3a4a72f47400f310c2a066b764a899d",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x48f0e4e",
+        "blockTimestamp": "2026-09-02T21:35:32.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Sei",
+      "canonicalEvaluatedCondition": "{\"chainId\":1329,\"contractAddress\":\"0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x8dff2d118af0fc80e4b473cef90fc26116622dab0b1fd2928070cf81862f0407",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0xdb3203c",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Plume",
+      "canonicalEvaluatedCondition": "{\"chainId\":98866,\"contractAddress\":\"0x222365EF19F7947e5484218551B56bb3965Aa7aF\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x7fd1265aeef6942d746bc033d81102351391166a8482a3b2fead74034743b265",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x56d614f",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Unichain",
+      "canonicalEvaluatedCondition": "{\"chainId\":130,\"contractAddress\":\"0x078D782b760474a361dDA0AF3839290b0EF57AD6\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xd8a588457f0798c7f033f567ed5865b63f9ac4cd9f6d505538efe0618c8ee8a2",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x36f76dd",
+        "blockTimestamp": "2026-09-02T21:35:32.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDC on Ink",
+      "canonicalEvaluatedCondition": "{\"chainId\":57073,\"contractAddress\":\"0x2D270e6886d130D724215A266106e6832161EAEd\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x20464874423771b1c5c71d20584d5e72eb6099cb5504a1c56154ac199af93f97",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x3458079",
+        "blockTimestamp": "2026-09-02T21:35:32.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDT on Ethereum",
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0xdAC17F958D2ee523a2206206994597C13D831ec7\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x76e39871e8f09b69882acfc1982a2000e50ff86a6e7e1805903766f9de47a099",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18b15f0",
+        "blockTimestamp": "2026-09-02T21:35:23.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDT on Sonic",
+      "canonicalEvaluatedCondition": "{\"chainId\":146,\"contractAddress\":\"0x6047828dc181963ba44974801ff68e538da5eaf9\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xbeb154d07bcb82c55f38b59504fbf2be1d2f3b622b7bd8889592e8a70f8fa1b1",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x4af4ebe",
+        "blockTimestamp": "2026-09-02T21:35:29.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDT on Linea",
+      "canonicalEvaluatedCondition": "{\"chainId\":59144,\"contractAddress\":\"0xA219439258ca9da29E9Cc4cE5596924745e12B93\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xfd702cd471a74349ecd1f2443f09d57c3cacdb7684e74f406658423631535767",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x1e6fe86",
+        "blockTimestamp": "2026-09-02T21:35:11.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDT on ZKsync",
+      "canonicalEvaluatedCondition": "{\"chainId\":324,\"contractAddress\":\"0x493257fD37EDB34451f62EDf8D2a0C418852bA4C\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x689e00e5409816471d519e45e6c3a6f6b38083267329a1a1b6052cbe9948f377",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x447ed22",
+        "blockTimestamp": "2026-09-02T21:35:20.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDT on Gnosis",
+      "canonicalEvaluatedCondition": "{\"chainId\":100,\"contractAddress\":\"0x4ECaBa5870353805a9F068101A40E0f32ed605C6\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xf4d55e52e0bc9db3db786f65167ab027649c7562d92cf414fb5e34397b433359",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x2dd2c02",
+        "blockTimestamp": "2026-09-02T21:35:30.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDT on Mantle",
+      "canonicalEvaluatedCondition": "{\"chainId\":5000,\"contractAddress\":\"0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xbfbfa31d1d6fd7a60c848c11e2f1a088fd103a3619f75f9ab27f2b0d22a31915",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x5f7d24e",
+        "blockTimestamp": "2026-09-02T21:35:32.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDT on Scroll",
+      "canonicalEvaluatedCondition": "{\"chainId\":534352,\"contractAddress\":\"0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xc5dcb74f9dcc16d255f98eb525e595e94ddfae2d0fc7addfa0476efc3eba2c01",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x21462df",
+        "blockTimestamp": "2026-09-02T21:35:21.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDT on Celo",
+      "canonicalEvaluatedCondition": "{\"chainId\":42220,\"contractAddress\":\"0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0xe1f6b90f6414af3165953db65b03ebc2da59f781062a97aa723925430c9a6044",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x48f0e4e",
+        "blockTimestamp": "2026-09-02T21:35:32.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDT on Soneium",
+      "canonicalEvaluatedCondition": "{\"chainId\":1868,\"contractAddress\":\"0x3A337a6adA9d885b6Ad95ec48F9b75f197b5AE35\",\"decimals\":6,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x4aa1e49100d1945dd00fb8a3b51cd83c68f94610cda9e9e6fb0f485e0f4bd6f7",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x1a58682",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    },
+    {
+      "dimension": "stablecoins",
+      "label": "USDT on opBNB",
+      "canonicalEvaluatedCondition": "{\"chainId\":204,\"contractAddress\":\"0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3\",\"decimals\":18,\"operator\":\"gt\",\"threshold\":0,\"type\":\"token_balance\"}",
+      "conditionHash": "0x3845091ff687c4c25cb0b1a6a14050f175ff7f0dbab14dfb93a5be106388c655",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0xacaf083",
+        "blockTimestamp": "2026-09-02T21:35:31.000Z"
+      }
+    }
+  ],
+  "response": {
+    "ok": true,
+    "data": {
+      "trust": {
+        "id": "TRST-F1B1C",
+        "wallet": "0xAd982CB19aCCa2923Df8F687C0614a7700255a23",
+        "conditionSetVersion": "v2",
+        "dimensions": {
+          "governance": {
+            "checks": [
+              {
+                "label": "UNI on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1,
+                  "contractAddress": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0xef25c0e181817c3dbe44e5b9f55b67f06cd625fdcbdaf499ab32f2a1c7509150",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              },
+              {
+                "label": "AAVE on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1,
+                  "contractAddress": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0xdf8dfc39c5f9d20774f65c0427f23162399ce47ab13540493879706812bc8360",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              },
+              {
+                "label": "ARB on Arbitrum",
+                "chainId": 42161,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 42161,
+                  "contractAddress": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0xcc0020fe53bcf6cbf2ce50eba74b9e2ebe86e052b98b193b8231253db232c4a1",
+                "blockNumber": "0x1dde4ca9",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              },
+              {
+                "label": "OP on Optimism",
+                "chainId": 10,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 10,
+                  "contractAddress": "0x4200000000000000000000000000000000000042",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0x7286173e3d6248091039e9833d2ce4c9ca7b2c466dc92a7bdbf9f4439806485c",
+                "blockNumber": "0x9525e75",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              }
+            ],
+            "passCount": 0,
+            "failCount": 4,
+            "notEvaluatedCount": 0,
+            "total": 4
+          },
+          "nfts": {
+            "checks": [
+              {
+                "label": "BAYC on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "nft_ownership",
+                  "chainId": 1,
+                  "contractAddress": "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+                  "operator": "gt",
+                  "threshold": 0
+                },
+                "conditionHash": "0xf20d2a07d91624ef8a9e884b339b217b127377b2d667885bd3f860f0b425a491",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              },
+              {
+                "label": "Pudgy Penguins on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "nft_ownership",
+                  "chainId": 1,
+                  "contractAddress": "0xBd3531dA5CF5857e7CfAA92426877b022e612cf8",
+                  "operator": "gt",
+                  "threshold": 0
+                },
+                "conditionHash": "0x676b5f4c21131316fa6d0f72100955da9b4e43a51dc8efb461ebb10cee000378",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              },
+              {
+                "label": "Wrapped CryptoPunks on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "nft_ownership",
+                  "chainId": 1,
+                  "contractAddress": "0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6",
+                  "operator": "gt",
+                  "threshold": 0
+                },
+                "conditionHash": "0xf8af667ce82e9ce3afacc7b497451cfe6100a27390a5552f6847cda9c6eff2f3",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              }
+            ],
+            "passCount": 0,
+            "failCount": 3,
+            "notEvaluatedCount": 0,
+            "total": 3
+          },
+          "institutional_stablecoins": {
+            "checks": [
+              {
+                "label": "EURCV on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1,
+                  "contractAddress": "0x5f7827fdeb7c20b443265fc2f40845b715385ff2",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0x0686a9c43f56bd396a0182761ec161f8a8ff8e431fdfd696665cd9d9de3de26d",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              },
+              {
+                "label": "USDCV on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1,
+                  "contractAddress": "0x5422374b27757da72d5265cc745ea906e0446634",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0xa60ad35ecb39d5f783c01aaeb2449ba256f3d56aadaeab64159657922a438cdb",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              },
+              {
+                "label": "EURCV on Solana",
+                "chainId": "solana",
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": "solana",
+                  "contractAddress": "DghpMkatCiUsofbTmid3M3kAbDTPqDwKiYHnudXeGG52",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 2
+                },
+                "conditionHash": "0x279f273b5d7345a7da730bf2466f6cc4680b6c2cd2b2d8f2fc56000f84b8a0c1",
+                "evaluated": false,
+                "reason": "wallet_not_provided",
+                "requires": "solanaWallet"
+              },
+              {
+                "label": "USDCV on Solana",
+                "chainId": "solana",
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": "solana",
+                  "contractAddress": "8smindLdDuySY6i2bStQX9o8DVhALCXCMbNxD98unx35",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 2
+                },
+                "conditionHash": "0xba002b0e63c2a6ff36c50f6a6ea96ccf6ff408e02e93c0d48089fb125bdfe46b",
+                "evaluated": false,
+                "reason": "wallet_not_provided",
+                "requires": "solanaWallet"
+              },
+              {
+                "label": "EURCV on XRPL",
+                "chainId": "xrpl",
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": "xrpl",
+                  "contractAddress": "rUNaS5sqRuxZz6V7rBGhoSaZiVYA3ut4UL",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "currency": "4555524356000000000000000000000000000000",
+                  "decimals": 18
+                },
+                "conditionHash": "0x96e23474627b9a6f751b425432d88d52714a7bd853ee9e1075f01d079f693afc",
+                "evaluated": false,
+                "reason": "wallet_not_provided",
+                "requires": "xrplWallet"
+              },
+              {
+                "label": "USDC on Stellar (classic)",
+                "chainId": "stellar",
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": "stellar",
+                  "contractAddress": "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "assetCode": "USDC",
+                  "decimals": 18
+                },
+                "conditionHash": "0xf2078292af116553fd01e4b662acd9476253fc628c85d23305f297b7dadf4d32",
+                "evaluated": false,
+                "reason": "wallet_not_provided",
+                "requires": "stellarWallet"
+              },
+              {
+                "label": "BENJI on Stellar",
+                "chainId": "stellar",
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": "stellar",
+                  "contractAddress": "GBHNGLLIE3KWGKCHIKMHJ5HVZHYIK7WTBE4QF5PLAKL4CJGSEU7HZIW5",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "assetCode": "BENJI",
+                  "decimals": 18
+                },
+                "conditionHash": "0x3d4608e304cd4aedb59cbcaad3c9452d6ca761b787e15f54ac02fb5bad28ac58",
+                "evaluated": false,
+                "reason": "wallet_not_provided",
+                "requires": "stellarWallet"
+              },
+              {
+                "label": "USDC on Sui",
+                "chainId": "sui",
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": "sui",
+                  "contractAddress": "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xc5bda8eece2993f5cd475f3359065872b7995b03ae8179b8e080612447ce69a0",
+                "evaluated": false,
+                "reason": "wallet_not_provided",
+                "requires": "suiWallet"
+              }
+            ],
+            "passCount": 0,
+            "failCount": 2,
+            "notEvaluatedCount": 6,
+            "total": 8
+          },
+          "staking": {
+            "checks": [
+              {
+                "label": "stETH on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1,
+                  "contractAddress": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0xdb443b0fbcd41b4f9c27eb767f97ca07a2fdadc615d4a11a96d55345b9bef7c3",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              },
+              {
+                "label": "rETH on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1,
+                  "contractAddress": "0xae78736Cd615f374D3085123A210448E74Fc6393",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0xdc4f80d4bd9f56ee0334ef9c53ecefe4529c35a8584247099dcb8de0db78d31b",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              },
+              {
+                "label": "cbETH on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1,
+                  "contractAddress": "0xBe9895146f7AF43049ca1c1AE358B0541Ea49704",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0xb6c64e48fa9f8c10336da7beb33d323695958fa2a366691cc46ea905c4f0aae3",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              }
+            ],
+            "passCount": 0,
+            "failCount": 3,
+            "notEvaluatedCount": 0,
+            "total": 3
+          },
+          "stablecoins": {
+            "checks": [
+              {
+                "label": "USDC on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1,
+                  "contractAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x27254c13e7bfb9e96dc90f7c54a7d2b05a5647fd38a00b2dc1bff58a236bbebf",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              },
+              {
+                "label": "USDC on Base",
+                "chainId": 8453,
+                "met": true,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 8453,
+                  "contractAddress": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x39c2094ef29fa7ea94e2db2ba02734ff06db035f47b1245fddd18be9e0e2d2f3",
+                "blockNumber": "0x3071ce0",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              },
+              {
+                "label": "USDC on Polygon",
+                "chainId": 137,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 137,
+                  "contractAddress": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x2f27c5ada76e26a8128be4c8ab6e4f18462125f8e62e1127325648764d895ad3",
+                "blockNumber": "0x58ce5bd",
+                "blockTimestamp": "2026-09-02T21:35:33.000Z"
+              },
+              {
+                "label": "USDC on Arbitrum",
+                "chainId": 42161,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 42161,
+                  "contractAddress": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x69d52b75f8158ecb3fcb3ebb927bdb3ab46b7dabc41e2a4ffb80e3a63693fcf1",
+                "blockNumber": "0x1dde4ca9",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              },
+              {
+                "label": "USDC on Optimism",
+                "chainId": 10,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 10,
+                  "contractAddress": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xe7cbb40729f6418a140ab1ba1ed2a6503dc1b308a5a59d023586f049c290f431",
+                "blockNumber": "0x9525e75",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              },
+              {
+                "label": "USDC on Avalanche",
+                "chainId": 43114,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 43114,
+                  "contractAddress": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xd7314b245f11bebe5edb8996bef62338a75cb4444154004e881af886617be5aa",
+                "blockNumber": "0x59f2004",
+                "blockTimestamp": "2026-09-02T21:35:30.000Z"
+              },
+              {
+                "label": "USDC on BNB Chain",
+                "chainId": 56,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 56,
+                  "contractAddress": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0x7a4a14eeb72f26d63ae43bd34d1b157e1ea28816637a986f95d02172c4a58fe5",
+                "blockNumber": "0x7211368",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              },
+              {
+                "label": "USDC on Sonic",
+                "chainId": 146,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 146,
+                  "contractAddress": "0x29219dd400f2Bf60E5a23d13Be72B486D4038894",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x7be940a7d4d138033f148f6a440f3cafeaeb59b5b160e176423ad71be395c915",
+                "blockNumber": "0x4af4ebe",
+                "blockTimestamp": "2026-09-02T21:35:29.000Z"
+              },
+              {
+                "label": "USDC on World Chain",
+                "chainId": 480,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 480,
+                  "contractAddress": "0x79A02482A880bCe3F13E09da970dC34dB4cD24D1",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xcd2c1e07e7c2c4d738d969a0f0ff818f4870b458c228924415dca1178c9f7f45",
+                "blockNumber": "0x20ecde6",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              },
+              {
+                "label": "USDC on Linea",
+                "chainId": 59144,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 59144,
+                  "contractAddress": "0x176211869cA2b568f2A7D4EE941E073a821EE1ff",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xbabd8bda4f43e4d419a1de7c7cc4d15013db6c4eb69bbee72608aceaef8df0b9",
+                "blockNumber": "0x1e6fe86",
+                "blockTimestamp": "2026-09-02T21:35:11.000Z"
+              },
+              {
+                "label": "USDC on ZKsync",
+                "chainId": 324,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 324,
+                  "contractAddress": "0x1d17CBcF0D6D143135aE902365D2E5e2A16538D4",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x889c7e4de2ed508109f3a31f0ea7bcdab551a22d80534fd458f8d920a37bb51f",
+                "blockNumber": "0x447ed22",
+                "blockTimestamp": "2026-09-02T21:35:20.000Z"
+              },
+              {
+                "label": "USDC on Celo",
+                "chainId": 42220,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 42220,
+                  "contractAddress": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x57a392a94f72fd432077ed3cd52ce772a3a4a72f47400f310c2a066b764a899d",
+                "blockNumber": "0x48f0e4e",
+                "blockTimestamp": "2026-09-02T21:35:32.000Z"
+              },
+              {
+                "label": "USDC on Sei",
+                "chainId": 1329,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1329,
+                  "contractAddress": "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x8dff2d118af0fc80e4b473cef90fc26116622dab0b1fd2928070cf81862f0407",
+                "blockNumber": "0xdb3203c",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              },
+              {
+                "label": "USDC on Plume",
+                "chainId": 98866,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 98866,
+                  "contractAddress": "0x222365EF19F7947e5484218551B56bb3965Aa7aF",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x7fd1265aeef6942d746bc033d81102351391166a8482a3b2fead74034743b265",
+                "blockNumber": "0x56d614f",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              },
+              {
+                "label": "USDC on Unichain",
+                "chainId": 130,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 130,
+                  "contractAddress": "0x078D782b760474a361dDA0AF3839290b0EF57AD6",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xd8a588457f0798c7f033f567ed5865b63f9ac4cd9f6d505538efe0618c8ee8a2",
+                "blockNumber": "0x36f76dd",
+                "blockTimestamp": "2026-09-02T21:35:32.000Z"
+              },
+              {
+                "label": "USDC on Ink",
+                "chainId": 57073,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 57073,
+                  "contractAddress": "0x2D270e6886d130D724215A266106e6832161EAEd",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x20464874423771b1c5c71d20584d5e72eb6099cb5504a1c56154ac199af93f97",
+                "blockNumber": "0x3458079",
+                "blockTimestamp": "2026-09-02T21:35:32.000Z"
+              },
+              {
+                "label": "USDT on Ethereum",
+                "chainId": 1,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1,
+                  "contractAddress": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x76e39871e8f09b69882acfc1982a2000e50ff86a6e7e1805903766f9de47a099",
+                "blockNumber": "0x18b15f0",
+                "blockTimestamp": "2026-09-02T21:35:23.000Z"
+              },
+              {
+                "label": "USDT on Sonic",
+                "chainId": 146,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 146,
+                  "contractAddress": "0x6047828dc181963ba44974801ff68e538da5eaf9",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xbeb154d07bcb82c55f38b59504fbf2be1d2f3b622b7bd8889592e8a70f8fa1b1",
+                "blockNumber": "0x4af4ebe",
+                "blockTimestamp": "2026-09-02T21:35:29.000Z"
+              },
+              {
+                "label": "USDT on Linea",
+                "chainId": 59144,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 59144,
+                  "contractAddress": "0xA219439258ca9da29E9Cc4cE5596924745e12B93",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xfd702cd471a74349ecd1f2443f09d57c3cacdb7684e74f406658423631535767",
+                "blockNumber": "0x1e6fe86",
+                "blockTimestamp": "2026-09-02T21:35:11.000Z"
+              },
+              {
+                "label": "USDT on ZKsync",
+                "chainId": 324,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 324,
+                  "contractAddress": "0x493257fD37EDB34451f62EDf8D2a0C418852bA4C",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x689e00e5409816471d519e45e6c3a6f6b38083267329a1a1b6052cbe9948f377",
+                "blockNumber": "0x447ed22",
+                "blockTimestamp": "2026-09-02T21:35:20.000Z"
+              },
+              {
+                "label": "USDT on Gnosis",
+                "chainId": 100,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 100,
+                  "contractAddress": "0x4ECaBa5870353805a9F068101A40E0f32ed605C6",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xf4d55e52e0bc9db3db786f65167ab027649c7562d92cf414fb5e34397b433359",
+                "blockNumber": "0x2dd2c02",
+                "blockTimestamp": "2026-09-02T21:35:30.000Z"
+              },
+              {
+                "label": "USDT on Mantle",
+                "chainId": 5000,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 5000,
+                  "contractAddress": "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xbfbfa31d1d6fd7a60c848c11e2f1a088fd103a3619f75f9ab27f2b0d22a31915",
+                "blockNumber": "0x5f7d24e",
+                "blockTimestamp": "2026-09-02T21:35:32.000Z"
+              },
+              {
+                "label": "USDT on Scroll",
+                "chainId": 534352,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 534352,
+                  "contractAddress": "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xc5dcb74f9dcc16d255f98eb525e595e94ddfae2d0fc7addfa0476efc3eba2c01",
+                "blockNumber": "0x21462df",
+                "blockTimestamp": "2026-09-02T21:35:21.000Z"
+              },
+              {
+                "label": "USDT on Celo",
+                "chainId": 42220,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 42220,
+                  "contractAddress": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0xe1f6b90f6414af3165953db65b03ebc2da59f781062a97aa723925430c9a6044",
+                "blockNumber": "0x48f0e4e",
+                "blockTimestamp": "2026-09-02T21:35:32.000Z"
+              },
+              {
+                "label": "USDT on Soneium",
+                "chainId": 1868,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 1868,
+                  "contractAddress": "0x3A337a6adA9d885b6Ad95ec48F9b75f197b5AE35",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 6
+                },
+                "conditionHash": "0x4aa1e49100d1945dd00fb8a3b51cd83c68f94610cda9e9e6fb0f485e0f4bd6f7",
+                "blockNumber": "0x1a58682",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              },
+              {
+                "label": "USDT on opBNB",
+                "chainId": 204,
+                "met": false,
+                "evaluatedCondition": {
+                  "type": "token_balance",
+                  "chainId": 204,
+                  "contractAddress": "0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3",
+                  "operator": "gt",
+                  "threshold": 0,
+                  "decimals": 18
+                },
+                "conditionHash": "0x3845091ff687c4c25cb0b1a6a14050f175ff7f0dbab14dfb93a5be106388c655",
+                "blockNumber": "0xacaf083",
+                "blockTimestamp": "2026-09-02T21:35:31.000Z"
+              }
+            ],
+            "passCount": 1,
+            "failCount": 25,
+            "notEvaluatedCount": 0,
+            "total": 26
+          }
+        },
+        "summary": {
+          "totalChecks": 44,
+          "totalPassed": 1,
+          "totalFailed": 37,
+          "totalNotEvaluated": 6,
+          "dimensionsWithActivity": 1,
+          "dimensionsChecked": 5
+        },
+        "profiledAt": "2026-09-02T21:35:32.765Z",
+        "expiresAt": "2026-09-02T22:05:32.765Z"
+      },
+      "sig": "vdHt+0CWWor/1pCfc9+04YbwulxWmQ55KqVrKHmqkgc/Q0GotJTOazuOmj80ooGab80/frN50QRsAf0rJ6dhTw==",
+      "kid": "insumer-trust-v2",
+      "pqSig": "q3t4MAF1zvZ/gbe1mPnMBAZuX58uSQvJBACgpdsl94c1/9lEi544G2iY8IEutTJ0EvgGxZ7RYqaH5Ah9Dp9CS/Ufgw4BoCDb3jkq9A+lBAGLwCEntB/GljL3JPypfiDmM09nRn3bgKpsB8vUPVhrzFDchmUfkxjJVLxHyiPB5KBOOONdS/GAC4vSG/UieiWsqFvYP0Wrvhwsqb9gXLi3nkKQET5nbCqWEqsqNZ4PyFwuTbWhOp2jD3xAfOyuGViJYP0iPMebxFwQisDNnP0SyaD03Qe1I96tg5ueliHcptlCDMuoRQQIdInXFK9QUXcD5pO35wqDUZnPojKat12PYigwM/QGz94fbKdIEAwg3ilJF/zkXXx1Rq1JjIv4bJZykjq9tREzCuLfdfdiqw+YdRMAaVLiWh/nsQKhdGM5XhpyISpnAC0YslunXaJiUHDLS7Figkm3Y0WHRQE22xa7VAWJNdSpMR4EZKDyL77lPvR4LaVFWm2US3y75nT1M/OrTRw1QVZFVr6QcUL86ekva5D7CnrjpRIeswiHEvz3z3XUUqTAC2ZV82Cm5jpNat5rAjT9NCdYzotkJi1T3wzLNg9N4EvlXVhM1hdfRjBtEgG48uSgZ7TfKVXNYtmh8vHfF8+amJgiE/DV/DqUQa1SYNl+c85FZSaSW53HR9FqdmI40G2YgPzXaKKqejoNGYAzl5lhKeOLYML3pmuwC6v6WQyxjxaP3rJkvbIXr+0apYPaHRgPeP7dWuHIvMBgf2uEMbuqJLAv1dZkdxd+4C+h7Jyzhdk4I5Mk74pcpToRe4Kf+sM7LU00YxpuHsziJE85O1AK7rdyeByxJPO/biGnRfghwbtmxfNL+LOWec5qnjcX8CY7VOUPSyY2hlgpGoLueg57bOjsGntZ35s1UpLrNR08USj0z3AbnITjp466ZA6IYeSbO6062QSH/3fGvgmMnrnraFU8dQXTsUALFbw5qINN6i5f1rL518Faq1wrXEFitCCX8+GUgFzARvsSBRMkj1TGrvhL1SdsT6T0TpcNeGNjbOYcrt6bOPAm6RYtK1uIrvrMl9Y+YbcQ5vp/K6S7b3vjyWUZubL7JOad9OXshBOU34g7GU+fIh79Y+aVqG7OhTOGkuEwES2yFyAP9MHRYEjJG86WQ6kDshcC/NgKfNQJSL7YHtEYTnIyW4eodykveenvyIW1xn6XVPSPVYqB6XcEfLmXVdOKqpeI7eLQ//TN8ghj7SC1luI6Dt0TvuVkP1eGdLB7JzmAiUVg26FUGies2VccITlzqwapCbdIiC9X/xBMk/8vmB8+WNUmoe9NdBZszpzi1uOUtLj4s3YEu3KBxumtmpzQvS8I87KyjcZz+8fXw4Rid4/WjIw0qwkn2O/iMxqN9RcQQkU59NpbETOddIQiqZU/EjAB5haGjaySyh+YFFMD0G48eCcXRpugvRBPRuCjCDMhGco+RhxP8K7JauIenXwy+UyiHxFWYKo7YwYEJKqgWQBaDHa8JsrhAYXqzAYoxY5SwDzTnkaDBLSsDm7/F/q72dnikNV9fZhG72njMK5lVpvr47slt1y5mHvoKu+oY2ZvIuve5Fr0qLQ9eLP8xy+djIQpuRkYAg8eQW7uAydyAxqUqOGRXwjC2l9jhqkgB0eOhI3Rtaw3zqmOHge7WSfsAa0gc8TyJxa7HDE3h55g0qt/h4je4hYgJ/OEXuTGHvupPFGDc2TJg4q4qA8UIm+sJ3+jbkwB6osulZ0NTLP76WRVrlOPd/dJFKQR3RoGEonlJAtBa54kdyoLcd8F602kZN5YfEXgErL4TeoU0uCEz/w1JjeouSTOdqgnylIPlgudDii+jcLDSiWBsj9KAODcu9fwcoguGN6BLZD/RwnDvlSEgeZZH/BpICBcdZiOMo1fLM0y75vPHEMfvtJ7zLumlGKrTEY6Zlz7OY8RqHqiIwxbRGjCW0JVgN84VI4HFPmcfdDE9RnAafiBNXhmxawost7wdRh0zqQZ0tQzqncWgLL9EfAATiJB5Sndj6h1l78NOcZflgsyqBCNH58/fex6g9DcmpU2oNP/+4b3ljwHRV1ESvt8RubPnLGEpAkppn5l1Wszl6ARczj6pnbQFCE072ZmAb8jSuYiTSoOXgSSGL0RK9EXXClyWJNgdYtnLQRThasl3zL1HHKsfwhHwSlhZvMza1U4vzliI8w2mR0yIyMJC5Qv0NefnLHPm4LKaQL0YIEUEEktZAbOoYxOQ/7wW7JPjZAF1T2/mHTIkvSlllVN0sxFBFly6NVjVx+lIJkslqahR8AQUxHKfr5EskhrRemowaplCCpcVm/RkpAGO7h0FiNMRm4TMWtPII90bwVP52C10Qex3Eu34EiMdUqHCwnAspaeiWjwPGu09S1elt9Rp1vixjjhqto55rPdXNQ22ZWFdKLDFWeUXHWx5KPJCbVbudWowJXxcazLeSbwxOYu4N87nz93doDmMrfaNG6fQLpXkuzuShMm4ghZwNS1CnFI5GY7AIyZLFzDkRmFqttC4mshO/16fZOVNo+6iNvYOv9IIPm2DXhqY0ab1MqqTBt2KbvrNM2+DJYJvegvbZPmZ3UizUhoDgNJOvI70E7yotYgJ+zVUw5bJXtGUcmaOdBcxXlkIzlB8qPpAaVgwKaEXyFfSjKZ+C8NZlt0qRyVbAgxpCO74tl0Pszu+Fl4F7g57d9WIVmNKCVjS2llE4d2k71Rxkt+5zGuUzbzTh3svPSqTdt3++K+MQ/LRZAHABSEX5ZT3gKawVNPks9+J/MiBz1hphiaSNYo4wUCmi54q0hdCOjnIfcIUzx5pDbG47CvxDJqfhxnG9qFgibTMi5F6zVumnp8rzpL6IY2CmQcDt/ZgdkDBdJGqaiAOcCmeZPsjGtVCYT+S/XKZzYWlzw0Hsn12+cx/wwhQHd6nbQf/tbGYNF9HayO5E9eSl9ocuu0FVWy0nKNHYtJH7oJ7yNzdKoU2UKjeJvSsN2O8gUAP5MJ00teceNA5NBza7ZNnxJB5AiMXguGUY2Q2osKXvxPz6+v1LORXYY/E6TmRx/VhkaXnEEqJ7o0mwmBO2mywMeDtc6/oKAyQbh94G29YrKR90N1HMXg7AdThAdVtjzQ5eEEnSSxt291rtXG0xnw2s1geuFiHW00ojMKTCRyLuzi1nUtRs5WtlNvxWJsaomYNLhn/qE4kt+s/LVtx6vNa5Vr7qqtkNmG+Z4Eo5coQ73tSPPfaDdAUaisI24GmetYiCPL/UaVAlaAomxlX3hYRyjxTSMM9+fER3Xfoe+4CanbO5TWZV3Aq9eLNC4e24vTYgjns6xYW9GbXvijUAsM6DwzymDQBgTJ27BJ+5sTXzu67OKkAqdQAh6XjIx8t+V1kGN3pS+JGyVnsPEiZX5rbJMoF+jY+sdNAnx4ldZj6dxlcJBsgRCPNvlQE+oNhIusvUqT7+XE9vsyUYOV2Rr0ebDW67yCFpwWwaLCuWd6xg2Rx4SAY6vrfl8orVlfggG1VIjoWdy3ESxPmcjw0eRB7xAtiAumZXbxfpKuB1I5QTl+r2QEWNpy1HfwJVv8g6g29rPHT68JzNdzW3h5wSF+iAQIqc/voNIhZiUMOaiftQX44ZMBNotaxGLf9lssyoYdoj0Y435cNWtWCOkrx/WFox2wts+KOQMAjqvoG7VGKRoHGBMLb/q8HIarf2IqgdnhYewy5lARE+nnyfI8Tw0Hj+rp3oAkyvzx0dCat7yHnVSSKZIApK3WSZ2v4X/z/MuWMJn1/33qUCd8Mhc+CLA5jCZWPMl+fOKGxK3cnSle1z7Xvw7IUpItt2OmjRAxBbW3Q3pQ8s3a7UoLNmVi0PFTRMJDAKntaIOKqoJf2U7qI/Q8l7zCQk3jd0EV3FhHgTdfY8C5eJSHHEOzBkv6N6vozaM6oM5Lp02AJiXPiI731iLgcJVOU81jGQG/Q3EJ2iutywBK3BayuoG5Ux3yXwap3i4BoWkoKa2ZDxhGU+AXQZJIIEZDNRW6+8MMR+cmQp5wcRxy5mVqdUjbt296i4jy2AqqmOxzcf761l2p0NSh87qThx3IsROyrPQrTKObY53AFSPbrqwhYwEYi+R52IZLAVFEenv8as3cpSBRlYuh/kL2UkXKHTfWEiR8lLrX/Z7sj1HdjR5RFg1fb8qpPS1yCurslZjPfPaB0yDErYFuspOV93qbjb2CULAn90b8szK7bT+oy8DiQcbhE5GF8YIUmYQHs+VssXJOlWIu2rlJ6Qvsz/ZlQhreWRq6UDcRQEbN8g6qjgkeuxXfeKBE4BBzjKOfojbhkTA78Qx+oSRMAkFroQs+Ohc2eo+YoLVll6i85jR5h7G4/yEtaG6DnaG18/osSm1xqgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgsRFBsg",
+      "pqKid": "insumer-trust-pq1"
+    },
+    "meta": {
+      "version": "1.0",
+      "timestamp": "2026-09-02T21:35:33.059Z",
+      "creditsRemaining": 997,
+      "creditsCharged": 3
+    }
+  },
+  "expected": {
+    "checks": {
+      "signature": true,
+      "freshness": true,
+      "expiry": false,
+      "pq": true
+    },
+    "pq": {
+      "status": "verified"
+    },
+    "trust": {
+      "summary": {
+        "totalChecks": 44,
+        "totalPassed": 1,
+        "totalFailed": 37,
+        "totalNotEvaluated": 6
+      },
+      "notEvaluated": [
+        {
+          "dimension": "institutional_stablecoins",
+          "label": "EURCV on Solana",
+          "requires": "solanaWallet"
+        },
+        {
+          "dimension": "institutional_stablecoins",
+          "label": "USDCV on Solana",
+          "requires": "solanaWallet"
+        },
+        {
+          "dimension": "institutional_stablecoins",
+          "label": "EURCV on XRPL",
+          "requires": "xrplWallet"
+        },
+        {
+          "dimension": "institutional_stablecoins",
+          "label": "USDC on Stellar (classic)",
+          "requires": "stellarWallet"
+        },
+        {
+          "dimension": "institutional_stablecoins",
+          "label": "BENJI on Stellar",
+          "requires": "stellarWallet"
+        },
+        {
+          "dimension": "institutional_stablecoins",
+          "label": "USDC on Sui",
+          "requires": "suiWallet"
+        }
+      ]
+    }
+  }
+}

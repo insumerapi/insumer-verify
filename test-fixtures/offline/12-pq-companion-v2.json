@@ -1,0 +1,80 @@
+{
+  "vector": "12-pq-companion-v2",
+  "description": "A v2 attestation carrying the post-quantum companion (pqSig, pqKid) as issued.",
+  "note": "Real response, signed by the production ES256 key and the production ML-DSA-65 key. The pqSig companion signs \"insumer.attestation.pq1\" + \"\\n\" + the exact classical preimage the classical kid selects (ML-DSA-65, FIPS 204; key insumer-attest-pq1 in the JWKS as an RFC 9964 AKP entry). It is reported as a fifth verdict, pq, beside the four classical checks; a refuted companion always fails, an absent or unverifiable one fails only under the verifier's own pqRequiredFrom policy. Expected pq status: verified.",
+  "options": {
+    "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
+  },
+  "recompute": [
+    {
+      "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"operator\":\"gte\",\"threshold\":\"1\",\"type\":\"token_balance\"}",
+      "conditionHash": "0x7461826638a23862059da9474fa12054829f694020701491d660395b87df6132",
+      "reproduces": true,
+      "anchor": {
+        "blockNumber": "0x18afc82",
+        "blockTimestamp": "2026-09-01T23:49:23.000Z"
+      }
+    }
+  ],
+  "response": {
+    "ok": true,
+    "data": {
+      "attestation": {
+        "id": "ATST-EBCC03C22FF000FA",
+        "pass": true,
+        "results": [
+          {
+            "condition": 0,
+            "label": "",
+            "type": "token_balance",
+            "chainId": 1,
+            "met": true,
+            "evaluatedCondition": {
+              "type": "token_balance",
+              "chainId": 1,
+              "contractAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+              "operator": "gte",
+              "threshold": "1"
+            },
+            "conditionHash": "0x7461826638a23862059da9474fa12054829f694020701491d660395b87df6132",
+            "blockNumber": "0x18afc82",
+            "blockTimestamp": "2026-09-01T23:49:23.000Z"
+          }
+        ],
+        "passCount": 1,
+        "failCount": 0,
+        "attestedAt": "2026-09-01T23:49:31.847Z",
+        "expiresAt": "2026-09-02T00:19:31.847Z"
+      },
+      "sig": "mM++/AH81e8TCtD/9k6PEf33i6cCP/rxFd+s2cQ4eLdfkMS+ii//HFydmm82hc5Uhv0dDRIyE6NRJbmMP78imQ==",
+      "kid": "insumer-attest-v2",
+      "pqSig": "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",
+      "pqKid": "insumer-attest-pq1"
+    },
+    "meta": {
+      "version": "1.0",
+      "timestamp": "2026-09-01T23:49:32.080Z",
+      "creditsCharged": 1
+    }
+  },
+  "expected": {
+    "checks": {
+      "signature": true,
+      "conditionHashes": true,
+      "freshness": true,
+      "expiry": false,
+      "pq": true
+    },
+    "pq": {
+      "status": "verified"
+    },
+    "attestation": {
+      "pass": true,
+      "results": [
+        {
+          "met": true
+        }
+      ]
+    }
+  }
+}
