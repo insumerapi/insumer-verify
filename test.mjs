@@ -332,6 +332,61 @@ console.log("\nTest 12: Binding grace is independent of clockSkew");
   );
 }
 
+// Test 16: A kid that selects no key fails the SIGNATURE verdict only. Condition hashes,
+// freshness and expiry need no key and report their own results; the companion is absent when
+// none was transmitted and unverifiable when one was. valid stays false throughout.
+console.log("\nTest 16: Key selection failure leaves the other verdicts independent");
+{
+  const serve = (keys, ok = true) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({ ok, status: ok ? 200 : 503, statusText: ok ? "OK" : "Service Unavailable", json: async () => ({ keys }) });
+    return () => { globalThis.fetch = realFetch; };
+  };
+  const v2Only = [{ kty: "EC", crv: "P-256", kid: "insumer-attest-v2", x: "JtHPhDPnv8AfP0JSlGutxbOlxreV2Chey27Z76q3V2c", y: "kn34HaxVSJfn8NxwNEBjjLkcrM_GDw1lgnqyADGuc4c" }];
+  const opts = { jwksUrl: "https://example.invalid/.well-known/jwks.json" };
+
+  // (a) unknown kid, key set fetched, no companion (the shape of published vector 11)
+  let { response } = await generateTestAttestation();
+  response.data.kid = "insumer-attest-v9";
+  let restore = serve(v2Only);
+  let result;
+  try { result = await verifyAttestation(response, opts); } finally { restore(); }
+  assert(result.valid === false, "(a) unknown kid: valid is false");
+  assert(result.checks.signature.passed === false && /no key matching kid/.test(result.checks.signature.reason), "(a) unknown kid: the signature verdict carries the key-selection reason");
+  assert(result.checks.conditionHashes.passed === true, "(a) unknown kid: condition hashes are recomputed and reproduce");
+  assert(result.checks.freshness.passed === true && result.checks.expiry.passed === true, "(a) unknown kid: freshness and expiry report their own results");
+  assert(result.checks.pq.status === "absent" && result.checks.pq.passed === true, "(a) unknown kid, no companion transmitted: pq is absent, not unverifiable");
+
+  // (b) missing kid, key set fetched, companion transmitted (the shape of published vector 19)
+  ({ response } = await generateTestAttestation());
+  delete response.data.kid;
+  response.data.pqSig = "AAAA";
+  response.data.pqKid = "insumer-attest-pq1";
+  restore = serve(v2Only);
+  try { result = await verifyAttestation(response, opts); } finally { restore(); }
+  assert(result.valid === false && /no kid/.test(result.checks.signature.reason), "(b) missing kid: valid is false and the signature verdict says so");
+  assert(result.checks.conditionHashes.passed === true, "(b) missing kid: condition hashes are recomputed and reproduce");
+  assert(result.checks.pq.status === "unverifiable" && /unknown to this verifier/.test(result.checks.pq.reason), "(b) missing kid, companion transmitted: pq is unverifiable (no preimage to rebuild), never refuted");
+  assert(result.checks.pq.passed === true, "(b) ...and without a pqRequiredFrom cutoff that is reported, not refused");
+  result = await (async () => { const r2 = serve(v2Only); try { return await verifyAttestation(response, { ...opts, pqRequiredFrom: "2020-01-01T00:00:00Z" }); } finally { r2(); } })();
+  assert(result.checks.pq.passed === false, "(b) ...under a cutoff that has passed, the unverifiable companion fails, as on every other path");
+
+  // (c) known kid, the key set itself unreachable: still the signature verdict's failure alone,
+  // and never a fallback to the built-in key
+  ({ response } = await generateTestAttestation());
+  response.data.kid = "insumer-attest-v2";
+  restore = serve([], false);
+  try { result = await verifyAttestation(response, opts); } finally { restore(); }
+  assert(result.valid === false && /JWKS fetch failed: 503/.test(result.checks.signature.reason), "(c) unreachable key set: the signature verdict names the fetch failure");
+  assert(result.checks.conditionHashes.passed === true && result.checks.expiry.passed === true, "(c) unreachable key set: condition hashes and expiry still report their own results");
+  assert(result.checks.pq.status === "absent", "(c) unreachable key set, no companion: pq is absent");
+  response.data.pqSig = "AAAA";
+  response.data.pqKid = "insumer-attest-pq1";
+  restore = serve([], false);
+  try { result = await verifyAttestation(response, opts); } finally { restore(); }
+  assert(result.checks.pq.status === "unverifiable", "(c) unreachable key set, companion transmitted: pq is unverifiable");
+}
+
 // ── Summary ────────────────────────────────────────────────────────
 
 console.log(`\n${passed} passed, ${failed} failed`);

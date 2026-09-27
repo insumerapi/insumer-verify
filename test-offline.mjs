@@ -62,6 +62,21 @@ console.log("\n=== a supplied set is honoured exactly: missing keys are not fetc
   check("malformed set (no keys array): fails, does not fall back to fetching", out3.checks.signature.passed === false);
 }
 
+console.log("\n=== a key the supplied set does not hold fails the signature verdict alone ===");
+{
+  // A REAL issuer response whose kid the built-in key would verify. With a supplied set that
+  // lacks that kid, the signature must fail (never a fallback to the built-in key), while the
+  // checks that need no key report their own results: the condition hashes reproduce, and the
+  // companion, whose AKP key is still in the set and whose classical kid is known, verifies.
+  const v = load("./test-fixtures/offline/12-pq-companion-v2.json");
+  const noV2 = { keys: savedJwks.keys.filter((k) => k.kid !== "insumer-attest-v2") };
+  const out = await verifyAttestation(v.response, { jwks: noV2, mode: "evidence" });
+  check("signature fails with the key-selection reason, not against the built-in key", out.checks.signature.passed === false && /no key matching kid/.test(out.checks.signature.reason ?? ""), out.checks.signature.reason);
+  check("condition hashes are still recomputed and reproduce", out.checks.conditionHashes.passed === true, out.checks.conditionHashes.reason);
+  check("the companion is still checked on its own and verifies", out.checks.pq.status === "verified", out.checks.pq.reason);
+  check("valid is false", out.valid === false);
+}
+
 check("nothing was fetched in any case above", fetchCalls === 0, `fetch called ${fetchCalls} times`);
 
 globalThis.fetch = realFetch;

@@ -194,7 +194,7 @@ const result = await verifyAttestation(data, { maxAge: 120 });
 
 ```html
 <script type="module">
-  import { verifyAttestation } from "https://esm.sh/insumer-verify@1.9.1";
+  import { verifyAttestation } from "https://esm.sh/insumer-verify@1.9.2";
 
   // apiResponse = attestation from your backend
   const result = await verifyAttestation(apiResponse, {
@@ -243,6 +243,8 @@ const result = await verifyAttestation(apiResponse, {
 ```
 
 When `jwksUrl` is set, the library fetches the JWKS, matches the key by `kid` from the attestation response, and uses it for signature verification. This enables automatic key rotation without library updates. A `kid` that matches no key in the document is a verification failure, and so is a response with no `kid` at all: the library never falls back to another key or to a position in the set, because the set holds keys of two types and the first key in a JWKS is not the key the signature claims. A `kid` is also bound to its artifact type: attestations verify only under `insumer-attest-v1` or `insumer-attest-v2`, trust profiles only under `insumer-attest-v1` or `insumer-trust-v2`, and a companion only under the `pqKid` for that artifact (`insumer-attest-pq1` or `insumer-trust-pq1`).
+
+When the `kid` selects no key, that is the signature verdict's failure alone. Condition hashes, freshness and expiry need no key and are still computed and reported on their own, and the companion is reported as `absent` when none was transmitted or `unverifiable` when one was (a `kid` that selects no key selects no preimage to rebuild it over). `valid` is false either way; nothing is ever checked against a key the response did not name.
 
 **Trust contract.** `jwksUrl` should be a hardcoded constant (e.g. the InsumerAPI JWKS endpoint) or another URL you control — set once at integration time. The library fetches whatever URL you pass, so passing untrusted user input would let a caller direct the library to fetch arbitrary endpoints on the host's behalf.
 

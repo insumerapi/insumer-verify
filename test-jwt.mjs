@@ -353,6 +353,32 @@ console.log("\nTest 11: Invalid JWT string — returns parse error");
   );
 }
 
+// Test 12: On the JWT path too, a kid that selects no key fails the signature verdict only
+console.log("\nTest 12: JWT under a kid the key set does not hold — other verdicts stay independent");
+{
+  const { jwt, keyPair } = await createTestJwt({ headerOverrides: { kid: "insumer-attest-v9" } });
+  const restore = mockFetchForKey(keyPair.publicKey); // serves insumer-attest-v1 only
+  try {
+    const result = await verifyAttestation(jwt, { jwksUrl: "https://test.example.com/.well-known/jwks.json" });
+    assert(result.valid === false, "valid is false");
+    assert(!result.checks.signature.passed && /no key matching kid/.test(result.checks.signature.reason), "signature carries the key-selection reason");
+    assert(result.checks.conditionHashes.passed, "condition hashes are recomputed from the claims and reproduce");
+    assert(result.checks.expiry.passed, "expiry reports its own result");
+    assert(result.checks.pq.status === "absent", "no companion supplied: pq is absent");
+  } finally {
+    restore();
+  }
+  const missing = await createTestJwt({ headerOverrides: { kid: undefined } });
+  const restore2 = mockFetchForKey(missing.keyPair.publicKey);
+  try {
+    const result = await verifyAttestation(missing.jwt, { jwksUrl: "https://test.example.com/.well-known/jwks.json" });
+    assert(result.valid === false && /no kid/.test(result.checks.signature.reason), "missing kid: valid is false, the signature verdict says so");
+    assert(result.checks.conditionHashes.passed && result.checks.expiry.passed, "missing kid: condition hashes and expiry still report their own results");
+  } finally {
+    restore2();
+  }
+}
+
 // ── Summary ──────────────────────────────────────────────────────
 
 console.log(`\n${passed} passed, ${failed} failed`);

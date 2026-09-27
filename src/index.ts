@@ -229,6 +229,28 @@ async function loadJwks(options: VerifyOptions | undefined, fallbackUrl?: string
   return { jwks: (await res.json()) as { keys: JwksKey[] }, label: `JWKS at ${url}` };
 }
 
+/**
+ * Key selection as a verdict, not an escape. When a key set is in play (`jwks` or `jwksUrl`)
+ * and the response's kid selects no usable key in it, the failure belongs to the SIGNATURE
+ * verdict alone: the other checks need no key and are still performed and reported on their
+ * own (spec Section 12: five independent verdicts). The companion's verdict on this path is
+ * decided by the kid rules in the caller (a companion that was never transmitted is absent;
+ * one transmitted under a kid this verifier cannot place is unverifiable).
+ *
+ * Returns the key, or the reason it could not be selected. Nothing is ever substituted:
+ * with a reason in hand the caller must not fall back to the built-in key.
+ */
+async function selectJwksKey(
+  options: VerifyOptions | undefined,
+  kid?: string
+): Promise<{ keyJwk?: JsonWebKey; keyProblem?: string }> {
+  try {
+    return { keyJwk: await fetchJwksKey(options, kid) };
+  } catch (e) {
+    return { keyProblem: `JWKS fetch error: ${(e as Error).message}` };
+  }
+}
+
 async function fetchJwksKey(options: VerifyOptions | undefined, kid?: string): Promise<JsonWebKey> {
   const { jwks, label } = await loadJwks(options);
   if (!jwks.keys || !Array.isArray(jwks.keys) || jwks.keys.length === 0) {
@@ -315,9 +337,13 @@ function pqPolicy(
   return { passed: !required, existedAtIssuance };
 }
 
+// `classicalPreimage` is a thunk: building the preimage canonicalizes the artifact, and an
+// artifact with no companion must never be canonicalized on the companion's behalf. It is
+// called only once a companion is known to be present and its kid placed, so a depth refusal
+// lands on a transmitted companion (unverifiable) and never on an absent one (absent).
 async function checkPqSignature(
   domain: string,
-  classicalPreimage: string,
+  classicalPreimage: () => string,
   pqSig: string | undefined,
   pqKid: string | undefined,
   options: VerifyOptions | undefined,
@@ -351,8 +377,9 @@ async function checkPqSignature(
     const pol = pqPolicy("unverifiable", options, attestedAt);
     return { status: "unverifiable", kid: pqKid, passed: pol.passed, existedAtIssuance: pol.existedAtIssuance, reason: (e as Error).message };
   }
+  const preimage = classicalPreimage(); // may throw on a hostile artifact: the caller's guard reports it
   try {
-    const msg = new TextEncoder().encode(domain + "\n" + classicalPreimage);
+    const msg = new TextEncoder().encode(domain + "\n" + preimage);
     const ok = mlDsa.verify(base64ToBytes(pqSig), msg, publicKey);
     const status: PqCheckResult["status"] = ok ? "verified" : "refuted";
     const pol = pqPolicy(status, options, attestedAt);
@@ -995,6 +1022,7 @@ async function checkEmbeddedJwt(
   attestation: Attestation,
   responseKid: string | undefined,
   keyJwk: JsonWebKey | undefined,
+  keyProblem: string | undefined,
   options: VerifyOptions | undefined
 ): Promise<CheckResult & { pq?: PqCheckResult }> {
   if (typeof token !== "string") {
@@ -1021,6 +1049,9 @@ async function checkEmbeddedJwt(
   const pq = await checkPqJwt(typeof pqJwt === "string" ? pqJwt : undefined, jwt, options, attestation.attestedAt);
   const fail = (reason: string): CheckResult & { pq?: PqCheckResult } => ({ passed: false, pq, reason });
 
+  // The token is signed under the response's kid. When that kid selected no key, the token's
+  // signature cannot be checked either, and it is not checked against the built-in key.
+  if (keyProblem) return fail(`data.jwt signature: ${keyProblem}`);
   const signature = await checkJwtSignature(jwt, keyJwk);
   if (!signature.passed) return fail(`data.jwt signature: ${signature.reason ?? "does not verify"}`);
 
@@ -1068,21 +1099,9 @@ async function verifyJwt(
   // Resolve the signing key by the JWT's kid: from options.jwks when supplied, else the JWKS URL
   const kid = jwt.header.kid as string | undefined;
 
-  let keyJwk: JsonWebKey | undefined;
-  try {
-    keyJwk = await fetchJwksKey(options, kid);
-  } catch (e) {
-    return {
-      valid: false,
-      checks: {
-        signature: { passed: false, reason: `JWKS fetch error: ${(e as Error).message}` },
-        conditionHashes: { passed: false, reason: "Skipped (JWKS fetch failed)" },
-        freshness: { passed: false, reason: "Skipped (JWKS fetch failed)" },
-        expiry: { passed: false, reason: "Skipped (JWKS fetch failed)" },
-        pq: { status: "unverifiable", passed: false, reason: "Skipped (JWKS fetch failed)" },
-      },
-    };
-  }
+  // A kid that selects no key is the signature verdict's failure, not everyone's: the
+  // remaining checks need no key and report their own results below.
+  const { keyJwk, keyProblem } = await selectJwksKey(options, kid);
 
   // Extract attestation data from JWT claims
   const results = (p.results || []) as AttestationResult[];
@@ -1096,7 +1115,7 @@ async function verifyJwt(
 
   const skewMs = clockSkewMs(options);
   const [signature, conditionHashes, freshness, expiry, pq] = await Promise.all([
-    guardedCheck(() => checkJwtSignature(jwt, keyJwk), failedCheck),
+    guardedCheck(() => (keyProblem ? failedCheck(keyProblem) : checkJwtSignature(jwt, keyJwk)), failedCheck),
     guardedCheck(() => checkConditionHashes(results, kid), failedCheck),
     guardedCheck(() => checkFreshness(results, options?.maxAge, skewMs), failedCheck),
     guardedCheck(() => checkExpiry(expiresAt, skewMs), failedCheck),
@@ -1153,43 +1172,40 @@ export async function verifyAttestation(
   const { attestation, sig, kid, pqSig, pqKid } = parsed.data;
   const hasEmbeddedJwt = !!(maybe && typeof maybe === "object" && maybe.data && (maybe.data.jwt != null || maybe.data.pqJwt != null)); // null or missing = no token to read
 
-  // If a key set (jwks) or jwksUrl is provided, resolve the signing key by kid from it
+  // If a key set (jwks) or jwksUrl is provided, resolve the signing key by kid from it.
+  // A kid that selects no key (missing, unknown, or the set unreachable) fails the signature
+  // verdict with that reason and nothing else: condition hashes, freshness and expiry need no
+  // key and report their own results, and the companion is reported by the kid rules below
+  // (absent when none was transmitted; unverifiable when one was, since an unplaceable kid
+  // selects no preimage). Each verdict is the reader's to weigh; `valid` stays false.
   let keyJwk: JsonWebKey | undefined;
+  let keyProblem: string | undefined;
   if (options?.jwks || options?.jwksUrl) {
-    try {
-      keyJwk = await fetchJwksKey(options, kid);
-    } catch (e) {
-      return {
-        valid: false,
-        checks: {
-          signature: { passed: false, reason: `JWKS fetch error: ${(e as Error).message}` },
-          conditionHashes: { passed: false, reason: "Skipped (JWKS fetch failed)" },
-          freshness: { passed: false, reason: "Skipped (JWKS fetch failed)" },
-          expiry: { passed: false, reason: "Skipped (JWKS fetch failed)" },
-          pq: { status: "unverifiable", passed: false, reason: "Skipped (JWKS fetch failed)" },
-        },
-      };
-    }
+    ({ keyJwk, keyProblem } = await selectJwksKey(options, kid));
   }
 
   const skewMs = clockSkewMs(options);
   const [signature, conditionHashes, freshness, expiry, pq] = await Promise.all([
-    guardedCheck(() => checkSignature(attestation, sig, keyJwk, kid), failedCheck),
+    guardedCheck(
+      () => (keyProblem ? failedCheck(keyProblem) : checkSignature(attestation, sig, keyJwk, kid)),
+      failedCheck
+    ),
     guardedCheck(() => checkConditionHashes(attestation.results, kid), failedCheck),
     guardedCheck(() => checkFreshness(attestation.results, options?.maxAge, skewMs), failedCheck),
     guardedCheck(
       () => checkExpiry(attestation.expiresAt, skewMs, attestation.attestedAt, attestation.results),
       failedCheck
     ),
-    // classicalAttestPreimage() is called INSIDE the thunk: it canonicalizes the
-    // artifact, so on a hostile one it throws, and as a bare argument that throw
-    // would escape before Promise.all was ever reached.
+    // classicalAttestPreimage() is handed over as a thunk and called INSIDE checkPqSignature,
+    // after the absence and kid checks: it canonicalizes the artifact, so on a hostile one it
+    // throws, and it must neither escape Promise.all nor be reached at all when no companion
+    // was transmitted (an absent companion stays absent whatever the artifact's shape).
     guardedCheck(
       () =>
         unknownClassicalKidPq(kid, pqSig, pqKid, options, attestation.attestedAt) ??
         checkPqSignature(
           PQ_ATTEST_DOMAIN,
-          classicalAttestPreimage(attestation, kid),
+          () => classicalAttestPreimage(attestation, kid),
           pqSig,
           pqKid,
           options,
@@ -1201,7 +1217,7 @@ export async function verifyAttestation(
 
   const failedJwtCheck = (reason: string): CheckResult & { pq?: PqCheckResult } => ({ passed: false, reason });
   const jwtCheck = hasEmbeddedJwt
-    ? await guardedCheck(() => checkEmbeddedJwt(maybe.data!.jwt, maybe.data!.pqJwt, attestation, kid, keyJwk, options), failedJwtCheck)
+    ? await guardedCheck(() => checkEmbeddedJwt(maybe.data!.jwt, maybe.data!.pqJwt, attestation, kid, keyJwk, keyProblem, options), failedJwtCheck)
     : undefined;
 
   const valid =
@@ -1490,42 +1506,38 @@ export async function verifyTrustProfile(
 
   const { trust, sig, kid, pqSig, pqKid } = parsed;
 
+  // Same rule as the attestation path: a kid that selects no key fails the signature
+  // verdict alone; freshness, expiry and the companion report their own results.
   let keyJwk: JsonWebKey | undefined;
+  let keyProblem: string | undefined;
   if (options?.jwks || options?.jwksUrl) {
-    try {
-      keyJwk = await fetchJwksKey(options, kid);
-    } catch (e) {
-      return {
-        valid: false,
-        trust,
-        checks: {
-          signature: { passed: false, reason: `JWKS fetch error: ${(e as Error).message}` },
-          freshness: { passed: false, reason: "Skipped (JWKS fetch failed)" },
-          expiry: { passed: false, reason: "Skipped (JWKS fetch failed)" },
-          pq: { status: "unverifiable", passed: false, reason: "Skipped (JWKS fetch failed)" },
-        },
-      };
-    }
+    ({ keyJwk, keyProblem } = await selectJwksKey(options, kid));
   }
 
   const skewMs = clockSkewMs(options);
-  const signature = await checkTrustSignature(trust, sig, keyJwk, kid);
+  const signature = keyProblem ? failedCheck(keyProblem) : await checkTrustSignature(trust, sig, keyJwk, kid);
   const freshness = checkTrustFreshness(trust, options?.maxAge, skewMs);
   const expiry = checkTrustExpiry(String(trust.expiresAt), skewMs);
   // Post-quantum companion over the same classical trust preimage the kid selects,
   // under the trust domain tag; reported as its own verdict (see checkPqSignature).
-  const pq =
-    unknownClassicalKidPq(kid, pqSig, pqKid, options, String(trust.profiledAt ?? "")) ??
-    (await checkPqSignature(
-      PQ_TRUST_DOMAIN,
-      kid === V2_TRUST_KID
-        ? V2_TRUST_DOMAIN + "\n" + canonicalize(trust)
-        : (assertDepth(trust), JSON.stringify(trust)),
-      pqSig,
-      pqKid,
-      options,
-      trust.profiledAt
-    ));
+  // Guarded like the attestation path: a profile too deeply nested to canonicalize is a
+  // failed verdict, never a thrown call, and is never canonicalized for a companion it lacks.
+  const pq = await guardedCheck(
+    () =>
+      unknownClassicalKidPq(kid, pqSig, pqKid, options, String(trust.profiledAt ?? "")) ??
+      checkPqSignature(
+        PQ_TRUST_DOMAIN,
+        () =>
+          kid === V2_TRUST_KID
+            ? V2_TRUST_DOMAIN + "\n" + canonicalize(trust)
+            : (assertDepth(trust), JSON.stringify(trust)),
+        pqSig,
+        pqKid,
+        options,
+        trust.profiledAt
+      ),
+    failedPqCheck
+  );
 
   return {
     valid: signature.passed && freshness.passed && expiry.passed && pq.passed,

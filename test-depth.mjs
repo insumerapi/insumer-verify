@@ -78,6 +78,31 @@ try { await verifyTrustProfile({ ok: true, data: { kid: "insumer-trust-v2", sig:
            summary: { s: 1 }, dimensions: nestObj(50000) } } }); } catch { threwT = true; }
 ok(!threwT, "50,000-deep trust profile returns instead of throwing");
 
+console.log("\nTest 6b: a WELL-FORMED trust profile nested past the bound returns a verdict, companion or not");
+{
+  const deepTrust = (withPq) => ({ ok: true, data: { kid: "insumer-trust-v2", sig: Buffer.alloc(64).toString("base64"),
+    ...(withPq ? { pqSig: "AAAA", pqKid: "insumer-trust-pq1" } : {}),
+    trust: { id: "t", wallet: "0x" + "ab".repeat(20), conditionSetVersion: "v2", dimensions: { deep: nestObj(200) },
+             summary: { s: 1 }, profiledAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 3600e3).toISOString() } } });
+  let threw = false, r;
+  try { r = await verifyTrustProfile(deepTrust(false)); } catch { threw = true; }
+  ok(!threw && r?.checks?.pq?.status === "absent" && r.checks.pq.passed === true, "no companion transmitted: returns, pq is absent (never canonicalized on the companion's behalf)");
+  ok(r?.valid === false && /nests deeper|too deeply nested/i.test(r?.checks?.signature?.reason ?? ""), "...and the profile is still refused at the signature");
+  threw = false;
+  try { r = await verifyTrustProfile(deepTrust(true)); } catch { threw = true; }
+  ok(!threw && r?.checks?.pq?.status === "unverifiable" && /too deeply nested/i.test(r.checks.pq.reason ?? ""), "companion transmitted: returns, pq is unverifiable with the depth refusal, not a thrown call");
+}
+
+console.log("\nTest 6c: an attestation nested past the bound with NO companion reports the companion absent");
+{
+  const r = await verifyAttestation(art(nestObj(200), "insumer-attest-v2"));
+  ok(r.valid === false && refused(r), "the artifact is refused");
+  ok(r.checks.pq.status === "absent" && r.checks.pq.passed === true, "pq is absent (no companion was transmitted), not unverifiable");
+  const withPq = art(nestObj(200), "insumer-attest-v2"); withPq.data.pqSig = "AAAA"; withPq.data.pqKid = "insumer-attest-pq1";
+  const r2 = await verifyAttestation(withPq);
+  ok(r2.checks.pq.status === "unverifiable" && /too deeply nested/i.test(r2.checks.pq.reason ?? ""), "with a companion transmitted, pq is unverifiable with the depth refusal");
+}
+
 // An orphaned rejection surfaces a tick later; give it room to kill us if it can.
 await new Promise(r => setTimeout(r, 500));
 console.log("\nTest 7: no orphaned rejection took the process down");

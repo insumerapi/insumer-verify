@@ -236,6 +236,23 @@ for (const era of ["v1", "v2"]) {
     assert(r.valid === false && r.checks.jwt.passed === false && r.checks.signature.passed, `${era} data.jwt = ${JSON.stringify(bad)} -> a verdict, never a throw`);
   }
 }
+// A whole response whose kid selects no key: the attestation's signature verdict fails with the
+// key-selection reason, its other verdicts stand on their own, the companion beside it is
+// unverifiable (transmitted under a kid that selects no preimage), and the token beside it fails
+// for the same key reason with ITS companion verdict still reported.
+{
+  const { resp, claims, sign } = await makeWhole("v2");
+  const t = JSON.parse(JSON.stringify(resp));
+  t.data.kid = "insumer-attest-v9";
+  t.data.jwt = await sign(claims, "insumer-attest-v9");
+  const r = await verifyAttestation(t, { jwksUrl: JWKS_URL });
+  assert(r.valid === false && /no key matching kid/.test(r.checks.signature.reason), "whole response under an unknown kid -> signature fails with the key-selection reason");
+  assert(r.checks.conditionHashes.passed === true && r.checks.expiry.passed === true, "...condition hashes and expiry report their own results");
+  assert(r.checks.pq.status === "unverifiable", "...the transmitted companion is unverifiable, never refuted");
+  assert(r.checks.jwt.passed === false && /no key matching kid/.test(r.checks.jwt.reason), "...the token beside it fails for the same reason, never checked against the built-in key");
+  assert(r.checks.jwt.pq && r.checks.jwt.pq.status === "verified", "...and the token's own companion verdict is still reported beside that failure");
+}
+
 // A companion that cannot be compared with its jwt (nesting past the bound) is refuted, not unverifiable.
 {
   const { jwt, claims, signPq } = await makeJwt("v2");
