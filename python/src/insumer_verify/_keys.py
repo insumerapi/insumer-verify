@@ -15,12 +15,11 @@ import urllib.request
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from cryptography.exceptions import InvalidSignature
+
+from ._jsjson import js_falsy, js_to_string
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.utils import (
-    decode_dss_signature,
-    encode_dss_signature,
-)
+from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
 #: InsumerAPI's ECDSA P-256 public key in JWK form. The same key is published
 #: at https://insumermodel.com/.well-known/jwks.json under three kids.
@@ -47,27 +46,47 @@ KNOWN_CLASSICAL_KIDS = ATTEST_KIDS | TRUST_KIDS
 # ── Encoding helpers ─────────────────────────────────────────────────
 
 
+_B64_ALPHABET = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+_B64_WHITESPACE = "\t\n\f\r "
+
+
 def b64_decode(text: str) -> bytes:
-    """Standard base64 (what ``atob`` reads), padding tolerated."""
+    """Standard base64 exactly as ``atob`` reads it (the WHATWG forgiving-base64 decode).
+
+    ASCII whitespace is dropped; when the length is a multiple of four, up to two
+    trailing ``=`` are dropped; a remaining ``=``, a length of 1 mod 4, or any
+    character outside the alphabet is an error. Nothing is padded for the caller.
+    """
     if not isinstance(text, str):
         raise ValueError("expected a base64 string")
-    cleaned = "".join(text.split())
-    pad = (-len(cleaned)) % 4
-    if pad == 3:
-        raise ValueError("invalid base64 length")
-    return base64.b64decode(cleaned + "=" * pad, validate=True)
+    cleaned = "".join(ch for ch in text if ch not in _B64_WHITESPACE)
+    if len(cleaned) % 4 == 0:
+        if cleaned.endswith("=="):
+            cleaned = cleaned[:-2]
+        elif cleaned.endswith("="):
+            cleaned = cleaned[:-1]
+    if len(cleaned) % 4 == 1 or any(ch not in _B64_ALPHABET for ch in cleaned):
+        raise ValueError("Invalid character")
+    return base64.b64decode(cleaned + "=" * (-len(cleaned) % 4), validate=True)
 
 
 def b64url_decode(text: str) -> bytes:
-    """base64url with or without padding."""
+    """base64url as the reference verifier reads it: ``-``/``_`` mapped, then padded by length, then ``atob``."""
     if not isinstance(text, str):
         raise ValueError("expected a base64url string")
-    cleaned = text.replace("-", "+").replace("_", "/")
-    return b64_decode(cleaned)
+    converted = text.replace("-", "+").replace("_", "/")
+    pad = len(converted) % 4
+    if pad == 2:
+        converted += "=="
+    elif pad == 3:
+        converted += "="
+    return b64_decode(converted)
 
 
 def b64url_decode_text(text: str) -> str:
-    return b64url_decode(text).decode("utf-8")
+    """The segment as ``TextDecoder`` reads it: invalid bytes replaced, a leading BOM dropped."""
+    decoded = b64url_decode(text).decode("utf-8", "replace")
+    return decoded[1:] if decoded.startswith("\ufeff") else decoded
 
 
 # ── JWKS loading and selection ───────────────────────────────────────
@@ -109,7 +128,18 @@ def _fetch_json(url: str) -> Dict[str, Any]:
     return parsed
 
 
-def fetch_jwks_key(options: Dict[str, Any], kid: Optional[str]) -> Dict[str, str]:
+def _find_key(keys: list, kid: Any, label: str, what: str) -> Dict[str, Any]:
+    # Walk in order, as Array.prototype.find does: an entry that is not an object is an
+    # error when it is met before the match, and never looked at after it.
+    for entry in keys:
+        if not isinstance(entry, dict):
+            raise ValueError(f"{label} holds an entry that is not a key object")
+        if entry.get("kid") == kid:
+            return entry
+    raise ValueError(f'{label} has no key matching {what} "{js_to_string(kid)}"')
+
+
+def fetch_jwks_key(options: Dict[str, Any], kid: Any) -> Dict[str, str]:
     """The P-256 JWK the response's kid names, or an error naming why none could be selected."""
     jwks, label = load_jwks(options)
     keys = jwks.get("keys")
@@ -119,17 +149,15 @@ def fetch_jwks_key(options: Dict[str, Any], kid: Optional[str]) -> Dict[str, str
     # first key in the document is not the key the signature claims. A response
     # with no kid cannot select a key at all (spec Section 3.4 makes kid
     # mandatory): the set holds keys of two types, and position is not a contract.
-    if not kid:
+    if js_falsy(kid):
         raise ValueError("Response carries no kid; the signing key cannot be selected")
-    key = next((k for k in keys if isinstance(k, dict) and k.get("kid") == kid), None)
-    if key is None:
-        raise ValueError(f'{label} has no key matching kid "{kid}"')
+    key = _find_key(keys, kid, label, "kid")
     if key.get("kty") != "EC" or key.get("crv") != "P-256":
-        raise ValueError(f'JWKS key "{kid}" is not a P-256 EC key; a classical signature cannot be verified with it')
+        raise ValueError(f'JWKS key "{js_to_string(kid)}" is not a P-256 EC key; a classical signature cannot be verified with it')
     return {"kty": "EC", "crv": "P-256", "x": str(key.get("x")), "y": str(key.get("y"))}
 
 
-def select_jwks_key(options: Dict[str, Any], kid: Optional[str]) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
+def select_jwks_key(options: Dict[str, Any], kid: Any) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
     """Key selection as a verdict, not an escape.
 
     When a key set is in play and the response's kid selects no usable key in
@@ -143,15 +171,13 @@ def select_jwks_key(options: Dict[str, Any], kid: Optional[str]) -> Tuple[Option
         return None, f"JWKS fetch error: {e}"
 
 
-def fetch_pq_key(options: Dict[str, Any], pq_kid: str) -> bytes:
+def fetch_pq_key(options: Dict[str, Any], pq_kid: Any) -> bytes:
     """The raw ML-DSA-65 public key the JWKS lists under ``pq_kid`` (RFC 9964 ``AKP``)."""
     jwks, label = load_jwks(options)
-    keys = jwks.get("keys") or []
-    key = next((k for k in keys if isinstance(k, dict) and k.get("kid") == pq_kid), None)
-    if key is None:
-        raise ValueError(f'{label} has no key matching pqKid "{pq_kid}"')
+    keys = jwks.get("keys")
+    key = _find_key(keys if isinstance(keys, list) else [], pq_kid, label, "pqKid")
     if key.get("kty") != "AKP" or key.get("alg") != "ML-DSA-65" or not isinstance(key.get("pub"), str):
-        raise ValueError(f'JWKS key "{pq_kid}" is not an RFC 9964 ML-DSA-65 key')
+        raise ValueError(f'JWKS key "{js_to_string(pq_kid)}" is not an RFC 9964 ML-DSA-65 key')
     return b64url_decode(key["pub"])
 
 
@@ -164,30 +190,61 @@ def ec_public_key(jwk: Dict[str, str]) -> ec.EllipticCurvePublicKey:
     return ec.EllipticCurvePublicNumbers(x, y, ec.SECP256R1()).public_key()
 
 
-def _der_from_signature(sig: bytes, accept_der: bool) -> bytes:
-    if len(sig) == 64:
-        r = int.from_bytes(sig[:32], "big")
-        s = int.from_bytes(sig[32:], "big")
-        return encode_dss_signature(r, s)
-    if accept_der and sig[:1] == b"\x30":
-        r, s = decode_dss_signature(sig)  # raises on malformed DER
-        return encode_dss_signature(r, s)
-    raise ValueError(f"signature is {len(sig)} bytes; expected 64 (P1363 r || s)")
+def der_to_p1363(der: bytes, key_size: int = 32) -> bytes:
+    """Convert a DER-encoded ECDSA signature to raw ``r || s``, leniently, as the reference verifier does.
+
+    Anything that does not look like DER is returned unchanged; leading bytes beyond
+    the key size are dropped; short integers are left-padded.
+    """
+    if not der or der[0] != 0x30:
+        return der
+    off = 2
+    if off >= len(der) or der[off] != 0x02:
+        return der
+    off += 1
+    if off >= len(der):
+        return der
+    r_len = der[off]
+    off += 1
+    r = der[off : off + r_len]
+    off += r_len
+    if off >= len(der) or der[off] != 0x02:
+        return der
+    off += 1
+    if off >= len(der):
+        return der
+    s_len = der[off]
+    off += 1
+    s = der[off : off + s_len]
+    if len(r) > key_size:
+        r = r[len(r) - key_size :]
+    if len(s) > key_size:
+        s = s[len(s) - key_size :]
+    out = bytearray(key_size * 2)
+    out[key_size - len(r) : key_size] = r
+    out[key_size * 2 - len(s) :] = s
+    return bytes(out)
 
 
 def ecdsa_verify(jwk: Dict[str, str], signature: bytes, message: bytes, accept_der: bool = False) -> bool:
-    """ECDSA P-256 / SHA-256 over ``message``.
+    """ECDSA P-256 / SHA-256 over ``message``, with Web Crypto's acceptance rules.
 
-    ``signature`` is raw P1363 ``r || s`` (what the API emits); on the JWT path
-    a DER-encoded signature is accepted too. Returns ``False`` for a signature
-    that does not verify and raises for a key or encoding that cannot be used.
+    ``signature`` is raw P1363 ``r || s`` (what the API emits). On the JWT path a
+    signature that is not 64 bytes is first run through :func:`der_to_p1363`.
+    Any signature that still is not 64 bytes, and any signature that does not
+    verify, returns ``False``; only an unusable key raises.
     """
     key = ec_public_key(jwk)
-    der = _der_from_signature(signature, accept_der)
+    if accept_der and len(signature) != 64:
+        signature = der_to_p1363(signature)
+    if len(signature) != 64:
+        return False
+    r = int.from_bytes(signature[:32], "big")
+    s = int.from_bytes(signature[32:], "big")
     try:
-        key.verify(der, message, ec.ECDSA(hashes.SHA256()))
+        key.verify(encode_dss_signature(r, s), message, ec.ECDSA(hashes.SHA256()))
         return True
-    except InvalidSignature:
+    except (InvalidSignature, ValueError):
         return False
 
 

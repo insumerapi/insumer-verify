@@ -323,3 +323,79 @@ def first_claim_difference(a: Any, b: Any, path: str = "", depth: int = 0) -> Op
         if d is not None:
             return d
     return None
+
+
+# ── JavaScript coercions the verifier needs ──────────────────────────
+
+
+def js_falsy(value: Any) -> bool:
+    """JavaScript's ``!value`` on a JSON value: null, false, 0, NaN and the empty string are falsy."""
+    if value is None or value is False or value == "":
+        return True
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return value == 0 or value != value
+    return False
+
+
+def js_to_string(value: Any) -> str:
+    """``String(value)`` for a JSON value, as JavaScript would print it."""
+    if value is None:
+        return "null"
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if isinstance(value, (int, float)):
+        if isinstance(value, float) and value != value:
+            return "NaN"
+        if isinstance(value, float) and value in (float("inf"), float("-inf")):
+            return "Infinity" if value > 0 else "-Infinity"
+        return js_number(value)
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        return ",".join("" if v is None else js_to_string(v) for v in value)
+    if isinstance(value, dict):
+        return "[object Object]"
+    return str(value)
+
+
+def js_to_number(value: Any) -> float:
+    """``Number(value)`` for a JSON value; ``nan`` where JavaScript gives NaN."""
+    nan = float("nan")
+    if value is None:
+        return 0.0
+    if value is True:
+        return 1.0
+    if value is False:
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, (list, tuple)):
+        if len(value) == 0:
+            return 0.0
+        if len(value) == 1:
+            return js_to_number(value[0])
+        return nan
+    if isinstance(value, dict):
+        return nan
+    if isinstance(value, str):
+        text = value.strip(" \t\n\r\f\v\u00a0\u2028\u2029\ufeff")
+        if text == "":
+            return 0.0
+        lowered = text.lower()
+        try:
+            if lowered.startswith(("0x", "0o", "0b")):
+                return float(int(text, 0))
+            if lowered in ("infinity", "+infinity"):
+                return float("inf")
+            if lowered == "-infinity":
+                return float("-inf")
+            if lowered in ("nan", "inf", "-inf", "+inf", "+nan", "-nan") or "_" in text:
+                return nan
+            return float(text)
+        except ValueError:
+            return nan
+    return nan

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "insumer-verify"
-version = "1.9.2"
+version = "1.9.2.1"
 description = "Verifier for InsumerAPI condition-based access attestations and wallet trust profiles. ECDSA P-256 signatures, condition hashes, block freshness, expiry, and the ML-DSA-65 post-quantum companion."
 readme = "README.md"
 requires-python = ">=3.9"

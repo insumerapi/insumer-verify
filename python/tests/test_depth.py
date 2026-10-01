@@ -10,7 +10,7 @@ import re
 
 from insumer_verify import MAX_CANONICAL_DEPTH, verify_attestation, verify_trust_profile
 
-REFUSED = re.compile(r"too deeply nested", re.I)
+REFUSED = re.compile(r"too deeply nested|nests deeper", re.I)
 
 
 def nest_obj(n):

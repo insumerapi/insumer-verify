@@ -168,6 +168,17 @@ The bytes InsumerAPI signs are defined by what `JSON.stringify` emits in the iss
 
 `classical_attest_preimage`, `classical_trust_preimage`, `condition_hash` and `canonicalize` are exported so a third party can reproduce each step without the package.
 
+## Where this package differs from the JavaScript one
+
+The verdicts are the same on every input the two can both read. The Python package is stricter about the caller's own options, because an option that is silently coerced or ignored is a weaker verification nobody asked for:
+
+- `jwks` must be a dict (the parsed JWKS document); anything else is a `TypeError`, where the JavaScript treats a falsy value as unset and uses its built-in key.
+- `max_age` and `clock_skew` must be numbers; a string is a `TypeError`, where the JavaScript coerces it.
+- `pq_required_from` and `pq_activated_at` must be ISO 8601 strings or `datetime` objects. A value that cannot be read is a `ValueError`, where `Date.parse` would read forms like `"Jan 1 2020"` and treat an unreadable one as "no cutoff". A falsy value (`0`, `""`, `None`) is unset in both.
+- Timestamps inside artifacts are read as `new Date(value)` reads them, including out-of-range fields making the value invalid, a day past the end of its month rolling over, a boolean reading as 0 or 1, and a number reading as milliseconds. Only the ISO 8601 forms are parsed; the issuer emits nothing else.
+
+Reason strings name Python things (`pq_jwt`, `dilithium-py`) where the JavaScript names its own. The one wording difference on a verdict: an artifact nested past the depth bound is reported on the signature check as "Signature verification error: Artifact nests deeper than 128 levels", the same text the JavaScript package uses.
+
 ## Tests
 
 ```bash
@@ -175,7 +186,7 @@ pip install "insumer-verify[test]"
 python -m pytest
 ```
 
-The suite runs all 27 published vectors offline against a saved key set, ports the JavaScript package's offline and depth suites, and cross-checks the serializer against Node.js when available. Set `INSUMER_VERIFY_NETWORK=1` to run the vectors against the live JWKS URL instead. The live tests in `tests/test_live.py` run only when `INSUMER_API_KEY_V2` and `INSUMER_API_KEY_V1` are set; each call spends one credit (three for a trust profile).
+The suite runs all 27 published vectors offline against a saved key set, ports the JavaScript package's offline and depth suites, cross-checks the serializer against Node.js when available, and carries a parity suite of inputs the vectors do not cover, each with the verdict the JavaScript reference gives. Set `INSUMER_VERIFY_NETWORK=1` to run the vectors against the live JWKS URL instead. The live tests in `tests/test_live.py` run only when `INSUMER_API_KEY_V2` and `INSUMER_API_KEY_V1` are set; each call spends one credit (three for a trust profile).
 
 ## Versioning
 
