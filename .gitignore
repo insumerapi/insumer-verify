@@ -5,3 +5,11 @@ build/
 .env
 .env.*
 !.env.example
+
+# Python package (python/)
+python/.venv/
+python/dist/
+python/build/
+__pycache__/
+*.egg-info/
+.pytest_cache/

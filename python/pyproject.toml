@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "insumer-verify"
+version = "1.9.2"
+description = "Verifier for InsumerAPI condition-based access attestations and wallet trust profiles. ECDSA P-256 signatures, condition hashes, block freshness, expiry, and the ML-DSA-65 post-quantum companion."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Douglas Borthwick" }]
+keywords = [
+  "condition-based-access",
+  "insumer",
+  "attestation",
+  "ecdsa",
+  "ml-dsa",
+  "post-quantum",
+  "verification",
+  "blockchain",
+  "on-chain",
+  "ai-agents",
+  "token-gating",
+  "agent-trust",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Security :: Cryptography",
+  "Typing :: Typed",
+]
+dependencies = ["cryptography>=41.0"]
+
+[project.optional-dependencies]
+pq = ["dilithium-py>=1.4"]
+test = ["pytest>=7", "dilithium-py>=1.4"]
+
+[project.urls]
+Homepage = "https://insumermodel.com/developers/verification/"
+Repository = "https://github.com/insumerapi/insumer-verify"
+Specification = "https://insumermodel.com/state-attestation-spec/"
+"Test vectors" = "https://insumermodel.com/.well-known/state-attestation-test-vectors.json"
+Changelog = "https://insumermodel.com/developers/changelog/"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/insumer_verify"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/insumer_verify", "tests", "README.md", "pyproject.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

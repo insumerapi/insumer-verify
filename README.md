@@ -10,6 +10,8 @@ Part of the InsumerAPI ecosystem: [REST API](https://insumermodel.com/developers
 npm install insumer-verify
 ```
 
+The same verifier is on PyPI for Python 3.9+, built from [`python/`](./python/) in this repository: `pip install insumer-verify` (add `[pq]` for the post-quantum companion). Both packages implement the same specification and pass the same 27 published test vectors; see [python/README.md](./python/README.md).
+
 ## Get an API Key
 
 Generate one from your terminal — no browser needed:
