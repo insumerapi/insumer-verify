@@ -236,7 +236,7 @@ await verifyAttestation(apiResponse, { maxAge: 120, clockSkew: 120 }); // two mi
 
 ### JWKS key discovery
 
-On the raw attestation and trust paths, insumer-verify uses the hardcoded InsumerAPI ECDSA public key unless you pass `jwksUrl` or `jwks`; the JWT path and the post-quantum companion always resolve their keys from a JWKS (fetched from `jwksUrl`, default `https://insumermodel.com/.well-known/jwks.json`, or the `jwks` object you supply). Unless `jwks` is supplied, the JWT path fetches the JWKS on each call; for a high-volume gate, pass a cached key set as `jwks`. Opt in to dynamic key discovery for the raw paths too:
+On the raw attestation and trust paths, insumer-verify uses the hardcoded InsumerAPI ECDSA public key unless you pass `jwksUrl` or `jwks`; the JWT path and the post-quantum companion always resolve their keys from a JWKS (fetched from `jwksUrl`, default `https://insumermodel.com/.well-known/jwks.json`, or the `jwks` object you supply). Unless `jwks` is supplied, the JWT path fetches the JWKS on each call; for a high-volume gate, pass a cached key set as `jwks`. If the key set may be unreachable when you verify (an offline gate, a record read years later), supply a saved copy as `jwks`: nothing is fetched on any path, and every verdict comes from the same key set. With neither option set, an outage reaches the two input formats differently, because only the raw paths carry a built-in key: a raw response still verifies classically and reports its companion `unverifiable` (the companion key comes only from a key set), while a JWT string fails the signature verdict with the fetch error. Opt in to dynamic key discovery for the raw paths too:
 
 ```typescript
 const result = await verifyAttestation(apiResponse, {
@@ -291,9 +291,9 @@ Trust profiles carry the same companion under `pqKid: insumer-trust-pq1` (domain
 | `pq.status`    | meaning                                                                      |
 |----------------|------------------------------------------------------------------------------|
 | `verified`     | companion present, key resolved by `pqKid`, signature verifies               |
-| `refuted`      | companion present and FAILS (tampered, wrong key, or a `pqJwt` whose claims differ from the `jwt`'s) |
+| `refuted`      | companion present and FAILS (tampered, wrong key, a `pqJwt` whose claims differ from the `jwt`'s, or a `pqJwt` whose header lacks the algorithm or a kid: the header is under the companion's own signature and the issuer always emits both) |
 | `absent`       | no companion on this response (normal for artifacts issued before PQ signing)|
-| `unverifiable` | present but could not be checked: unknown `pqKid`, a companion kid for the other artifact type, JWKS unreachable, or no ML-DSA implementation in this runtime |
+| `unverifiable` | present but could not be checked: unknown `pqKid`, `pqSig` sent without `pqKid` (an unsigned sibling, so its absence is a gap rather than evidence), a companion kid for the other artifact type, JWKS unreachable, or no ML-DSA implementation in this runtime |
 
 A classical `kid` this library does not know selects no preimage, so the companion is `unverifiable`, never `refuted`: a verifier must tolerate a signing kid it has not met. A known kid naming the wrong artifact type is a relabelled artifact and stays `refuted`.
 
@@ -422,7 +422,7 @@ if (result.valid) render(result.trust);
 | Check | What it does |
 |-------|-------------|
 | **Signature** | Verifies the ECDSA P-256 signature over the preimage the `kid` selects (v1: bare `{id, pass, results, attestedAt}`; v2: the domain tag plus canonical JSON with a `v:2` member; trust v2: the domain tag plus canonical JSON of the whole trust object) using the key the `kid` names. A missing, unknown, or wrong-artifact `kid` fails |
-| **Condition hashes** | Recomputes SHA-256 of each `evaluatedCondition` (canonical JSON per the scheme) and compares to `conditionHash`; a result lacking either field fails |
+| **Condition hashes** | Recomputes SHA-256 of each `evaluatedCondition` (canonical JSON per the scheme the `kid` selects; a `kid` that selects no scheme is recomputed under the v1 form, which agrees with v2 on every flat condition the API issues) and compares to `conditionHash`; a result lacking either field fails |
 | **Freshness** | Checks `blockTimestamp` age against caller-defined `maxAge` plus the `clockSkew` allowance (optional, skipped if `maxAge` is not set) |
 | **Expiry** | Checks whether the attestation's validity window has elapsed, allowing `clockSkew` seconds past `expiresAt`, and anchors the window to the signed `attestedAt`: `expiresAt` is bounded by `attestedAt` + 30 minutes (5 for a delegation verdict) plus the fixed 60-second binding grace (`EXPIRY_BINDING_GRACE_MS`, a verifier tolerance the spec permits), so a tampered future `expiresAt` cannot extend the window |
 | **Post-quantum companion** | Verifies `pqSig` with ML-DSA-65 over the post-quantum domain tag plus the same classical preimage, key resolved by `pqKid`; in the JWT format, verifies `pqJwt` over its own `header.payload` and binds it to the `jwt` by the full claim set; always reported once the token parses and names the response's `kid`, including when a later check fails; reported as `verified`, `refuted`, `absent`, or `unverifiable` (spec Check 6). Needs the optional `@noble/post-quantum` peer; without it a present companion is `unverifiable` |
