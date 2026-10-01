@@ -10,6 +10,10 @@ That opens an advisory visible only to you and the maintainers. If you cannot us
 
 Please do not open a public issue for a suspected vulnerability. If you already have, that is not a problem; it will be handled the same way.
 
+## Scope
+
+This policy covers both packages built from this repository: `insumer-verify` on npm (the TypeScript source under `src/`) and `insumer-verify` on PyPI (the Python source under `python/`). A finding in one is checked against the other before the advisory is published, since they implement the same checks.
+
 ## What to expect
 
 Your report will be acknowledged. Beyond that, no response time is promised.
