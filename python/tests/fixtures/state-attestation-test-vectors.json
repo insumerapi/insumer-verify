@@ -10,11 +10,11 @@
     "insumer-verify": "1.9.2",
     "@noble/post-quantum": "0.7.1",
     "version_note": "These are the exact versions the published verdicts were produced under, pinned in vectors/package.json with a lockfile and installed with npm ci. They record what ran rather than a minimum requirement; the reference-implementation floor stated elsewhere in this file is a separate claim.",
-    "jwks_snapshot": "https://github.com/douglasborthwick-crypto/insumer-examples/blob/main/vectors/jwks-2026-09-18.json",
+    "jwks_snapshot": "https://github.com/insumerapi/insumer-examples/blob/main/vectors/jwks-2026-09-18.json",
     "jwks_snapshot_sha256": "506d8ee2b056c65d4267237209b1802e3376bd5e3b08e988158bdacb9fc7a244",
     "jwks_note": "Sixteen entries (11 to 22 and 24 to 27) resolve their keys from the live JWKS when they run; the other eleven verify against the key built into insumer-verify and fetch nothing. The snapshot above is the key set these verdicts were produced against, for reproducing them after a key rotation."
   },
-  "source_of_truth": "https://github.com/douglasborthwick-crypto/insumer-examples/tree/main/vectors",
+  "source_of_truth": "https://github.com/insumerapi/insumer-examples/tree/main/vectors",
   "note": "This file is a discovery copy. The repository above carries the same vectors plus a runner, and is the authority if the two ever differ.",
   "contract": {
     "canonicalization": "JSON with keys sorted lexicographically and recursively, no whitespace, standard separators",
