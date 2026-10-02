@@ -196,7 +196,7 @@ const result = await verifyAttestation(data, { maxAge: 120 });
 
 ```html
 <script type="module">
-  import { verifyAttestation } from "https://esm.sh/insumer-verify@1.9.2";
+  import { verifyAttestation } from "https://esm.sh/insumer-verify@1.9.3";
 
   // apiResponse = attestation from your backend
   const result = await verifyAttestation(apiResponse, {
