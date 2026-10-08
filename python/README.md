@@ -1,6 +1,6 @@
 # insumer-verify
 
-Verifier for [InsumerAPI](https://insumermodel.com) condition-based access attestations and wallet trust profiles, in Python. ECDSA P-256 signatures, condition hashes, block freshness, expiry, and the ML-DSA-65 post-quantum companion, checked locally against the published JWKS.
+Verifier for [InsumerAPI](https://insumermodel.com) condition-based access attestations and wallet trust profiles, in Python. ECDSA P-256 signatures, condition hashes, block freshness, expiry, and the ML-DSA-65 post-quantum signature, checked locally against the published JWKS.
 
 This is the Python counterpart of the [`insumer-verify` npm package](https://www.npmjs.com/package/insumer-verify). Both implement the [State Attestation Specification](https://insumermodel.com/state-attestation-spec/) and both pass all 27 published [test vectors](https://insumermodel.com/.well-known/state-attestation-test-vectors.json), so a verdict from one can be reproduced with the other.
 
@@ -10,13 +10,13 @@ This is the Python counterpart of the [`insumer-verify` npm package](https://www
 pip install insumer-verify
 ```
 
-The post-quantum companion needs an ML-DSA-65 implementation, which the standard library does not have:
+The post-quantum signature needs an ML-DSA-65 implementation, which the standard library does not have:
 
 ```bash
 pip install "insumer-verify[pq]"
 ```
 
-Without it the companion is reported `unverifiable`. It is never silently passed and never silently failed.
+Without it the post-quantum signature is reported `unverifiable`. It is never silently passed and never silently failed.
 
 Python 3.9 or later. The only required dependency is `cryptography`.
 
@@ -55,7 +55,7 @@ if result["valid"] and res["data"]["attestation"]["pass"]:
     grant_access()
 ```
 
-Pass the **full API response**, not `res["data"]` or the attestation object. The verifier reads the signature, `kid` and companion fields beside the attestation.
+Pass the **full API response**, not `res["data"]` or the attestation object. The verifier reads the signature, `kid` and post-quantum fields beside the attestation.
 
 `valid` is true only when every check passed. Each check reports on its own under `result["checks"]`, so a failing artifact still tells you exactly what failed:
 
@@ -83,7 +83,7 @@ result["checks"]["jwt"]["passed"]          # the token is this attestation's, si
 result["checks"]["jwt"]["pq"]["status"]    # "verified": pqJwt carries exactly the same claims
 ```
 
-A bare token string works too. Its companion cannot travel inside it, so hand it over separately:
+A bare token string works too. Its post-quantum signature cannot travel inside it, so hand it over separately:
 
 ```python
 result = verify_attestation(res["data"]["jwt"], jwks_url=JWKS, pq_jwt=res["data"]["pqJwt"])
@@ -124,12 +124,12 @@ All options are keyword-only.
 | `clock_skew` | seconds | Allowance on the freshness and expiry comparisons. Default 60; 0 disables |
 | `jwks_url` | str | Fetch the key set from this URL and select the key by `kid` |
 | `jwks` | dict | A key set you already hold. Nothing is fetched; takes precedence over `jwks_url` |
-| `pq_jwt` | str | The `pqJwt` companion when verifying a bare JWT string |
-| `pq_required_from` | ISO string or datetime | Your own cutoff: from this date, judged by your clock, an absent or unverifiable companion fails `valid`. The only option that can make a missing companion fail. A refuted companion always fails |
-| `mode` | `"access"` or `"evidence"` | `access` (default) applies the cutoff. `evidence` never refuses for a missing companion and only reports; use it when reading an artifact after the fact |
-| `pq_activated_at` | ISO string or datetime | The anchored key-binding time. When set, `checks["pq"]["existedAtIssuance"]` says whether a companion could have existed when the artifact was issued. Reporting only |
+| `pq_jwt` | str | The post-quantum `pqJwt` when verifying a bare JWT string |
+| `pq_required_from` | ISO string or datetime | Your own cutoff: from this date, judged by your clock, an absent or unverifiable post-quantum signature fails `valid`. The only option that can make a missing post-quantum signature fail. A refuted post-quantum signature always fails |
+| `mode` | `"access"` or `"evidence"` | `access` (default) applies the cutoff. `evidence` never refuses for a missing post-quantum signature and only reports; use it when reading an artifact after the fact |
+| `pq_activated_at` | ISO string or datetime | The anchored key-binding time. When set, `checks["pq"]["existedAtIssuance"]` says whether a post-quantum signature could have existed when the artifact was issued. Reporting only |
 
-With neither `jwks` nor `jwks_url`, the built-in InsumerAPI P-256 key is used for the classical signature and the companion is `unverifiable` (its key must come from a key set).
+With neither `jwks` nor `jwks_url`, the built-in InsumerAPI P-256 key is used for the classical signature and the post-quantum signature is `unverifiable` (its key must come from a key set).
 
 ## What gets verified
 
@@ -139,8 +139,8 @@ With neither `jwks` nor `jwks_url`, the built-in InsumerAPI P-256 key is used fo
 | **Condition hashes** | Recomputes SHA-256 of each `evaluatedCondition` (canonical JSON per the scheme) and compares to `conditionHash`. A result lacking either field fails at its index |
 | **Freshness** | `blockTimestamp` age against `max_age` plus `clock_skew`. Optional |
 | **Expiry** | Whether the window has elapsed, allowing `clock_skew` past `expiresAt`, with `expiresAt` bound to the signed `attestedAt`: at most 30 minutes later (5 for a delegation verdict) plus a fixed 60-second grace, so an edited future `expiresAt` cannot extend the window |
-| **Post-quantum companion** | `pqSig` verified with ML-DSA-65 over the post-quantum domain tag plus the same classical preimage, key resolved by `pqKid`. In the JWT format, `pqJwt` is verified over its own `header.payload` and bound to `jwt` by the full claim set. Reported as `verified`, `refuted`, `absent` or `unverifiable` |
-| **Tokens in the response** (`checks["jwt"]`) | Only when the response carries `data.jwt` beside `data.attestation`. The token is verified under the same `kid`, its condition hashes recomputed, its `jti`, `pass`, `results` and `exp` matched to the attestation, and its `pqJwt` companion reported under `checks["jwt"]["pq"]`. A failure fails `valid` |
+| **Post-quantum signature** | `pqSig` verified with ML-DSA-65 over the post-quantum domain tag plus the same classical preimage, key resolved by `pqKid`. In the JWT format, `pqJwt` is verified over its own `header.payload` and bound to `jwt` by the full claim set. Reported as `verified`, `refuted`, `absent` or `unverifiable` |
+| **Tokens in the response** (`checks["jwt"]`) | Only when the response carries `data.jwt` beside `data.attestation`. The token is verified under the same `kid`, its condition hashes recomputed, its `jti`, `pass`, `results` and `exp` matched to the attestation, and its post-quantum `pqJwt` reported under `checks["jwt"]["pq"]`. A failure fails `valid` |
 
 Key selection is a verdict, not an escape. When a key set is in play and the response's `kid` selects no usable key in it, the signature check fails with that reason alone; the other checks need no key and still report their own results. Nothing is ever substituted for the key the signature claims.
 
@@ -164,7 +164,7 @@ The bytes InsumerAPI signs are defined by what `JSON.stringify` emits in the iss
 - **Attestation preimage.** `insumer-attest-v1`: `JSON.stringify({id, pass, results, attestedAt})`, results exactly as received. `insumer-attest-v2`: `"insumer.attestation.v2" + "\n" + canonical({v: 2, id, pass, results, attestedAt})`.
 - **Trust preimage.** `insumer-attest-v1`: `JSON.stringify(trust)` as parsed. `insumer-trust-v2`: `"insumer.trust.v2" + "\n" + canonical(trust)`, `expiresAt` included, no `v` member.
 - **Condition hash.** v1: `JSON.stringify(evaluatedCondition, sorted top-level keys)`. v2: canonical JSON. Both: `"0x" + hex(SHA-256(UTF-8 bytes))`.
-- **Post-quantum companion.** `pqSig`: ML-DSA-65 (FIPS 204, pure mode, empty context) over `"insumer.attestation.pq1" + "\n" + <classical preimage>`; trust profiles use `"insumer.trust.pq1"`. The key is the RFC 9964 `AKP` entry under `pqKid`. `pqJwt`: a compact JWS with `alg: "ML-DSA-65"`, bound to the ES256 token by every claim.
+- **Post-quantum signature.** `pqSig`: ML-DSA-65 (FIPS 204, pure mode, empty context) over `"insumer.attestation.pq1" + "\n" + <classical preimage>`; trust profiles use `"insumer.trust.pq1"`. The key is the RFC 9964 `AKP` entry under `pqKid`. `pqJwt`: a compact JWS with `alg: "ML-DSA-65"`, bound to the ES256 token by every claim.
 
 `classical_attest_preimage`, `classical_trust_preimage`, `condition_hash` and `canonicalize` are exported so a third party can reproduce each step without the package.
 
