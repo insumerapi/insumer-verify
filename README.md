@@ -1,5 +1,7 @@
 # insumer-verify
 
+[![npm](https://img.shields.io/npm/v/insumer-verify)](https://www.npmjs.com/package/insumer-verify) [![PyPI](https://img.shields.io/pypi/v/insumer-verify)](https://pypi.org/project/insumer-verify/) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/insumerapi/insumer-verify/blob/main/LICENSE)
+
 Client-side verifier for [InsumerAPI](https://insumermodel.com/developers/) wallet auth attestations. Validates ECDSA P-256 signatures, condition hashes, block freshness, and attestation expiry. Zero runtime dependencies. Web Crypto API. Node.js 18+ and modern browsers. Type-agnostic: verifies every condition type (`token_balance`, `nft_ownership`, `eas_attestation`, `farcaster_id`, `evm_view_call`, `ratio_to_amount`, `ratio_to_supply`, `erc8004_agent`, `erc7710_delegation`, `account_code`) by recomputing the condition hash from the signed `evaluatedCondition`; the only type-specific rule is the 5-minute issuance window applied when a result carries `erc7710_delegation`.
 
 Part of the InsumerAPI ecosystem: [REST API](https://insumermodel.com/developers/) (46 endpoints, 37 chains) | [MCP server](https://www.npmjs.com/package/mcp-server-insumer) (npm) | [LangChain](https://pypi.org/project/langchain-insumer/) (PyPI) | [ElizaOS](https://www.npmjs.com/package/@insumermodel/plugin-eliza) (10 actions, npm) | [OpenAI GPT](https://chatgpt.com/g/g-699c5e43ce2481918b3f1e7f144c8a49-insumerapi-verify) (GPT Store)
@@ -14,7 +16,7 @@ The same verifier is on PyPI for Python 3.9+, built from [`python/`](./python/) 
 
 ## Get an API Key
 
-Generate one from your terminal — no browser needed:
+Generate one from your terminal, no browser needed:
 
 ```bash
 curl -s -X POST https://api.insumermodel.com/v1/keys/create \
@@ -47,7 +49,7 @@ const res = await fetch("https://api.insumermodel.com/v1/attest", {
         type: "token_balance",
         chainId: 1,
         contractAddress: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        threshold: "1000", // decimal string — new keys are v2 and reject a JSON number with 400
+        threshold: "1000", // decimal string: new keys are v2 and reject a JSON number with 400
         label: "USDC >= 1000 on Ethereum",
       },
     ],
@@ -159,7 +161,7 @@ Because XRPL results have no `blockTimestamp`, the freshness check (`maxAge`) sk
 
 ### Handling `rpc_failure` errors
 
-If the API cannot reach one or more upstream data sources after retries, it returns `ok: false` with error code `rpc_failure` instead of issuing an attestation. **No signature, no JWT, no credits charged.** This is a retryable error — retry the same request after a short delay (2-5 seconds).
+If the API cannot reach one or more upstream data sources after retries, it returns `ok: false` with error code `rpc_failure` instead of issuing an attestation. **No signature, no JWT, no credits charged.** This is a retryable error: retry the same request after a short delay (2-5 seconds).
 
 ```json
 {
@@ -182,7 +184,7 @@ const res = await fetch("https://api.insumermodel.com/v1/attest", { ... });
 const data = await res.json();
 
 if (!data.ok && data.error?.code === "rpc_failure") {
-  // Retryable — data source temporarily unavailable
+  // Retryable: data source temporarily unavailable
   // Wait 2-5 seconds and retry the same request
   console.log("RPC failure, retrying...", data.error.failedConditions);
   return;
@@ -248,7 +250,7 @@ When `jwksUrl` is set, the library fetches the JWKS, matches the key by `kid` fr
 
 When the `kid` selects no key, that is the signature verdict's failure alone. Condition hashes, freshness and expiry need no key and are still computed and reported on their own, and the post-quantum signature is reported as `absent` when none was transmitted or `unverifiable` when one was (a `kid` that selects no key selects no preimage to rebuild it over). `valid` is false either way; nothing is ever checked against a key the response did not name.
 
-**Trust contract.** `jwksUrl` should be a hardcoded constant (e.g. the InsumerAPI JWKS endpoint) or another URL you control — set once at integration time. The library fetches whatever URL you pass, so passing untrusted user input would let a caller direct the library to fetch arbitrary endpoints on the host's behalf.
+**Trust contract.** `jwksUrl` should be a hardcoded constant (e.g. the InsumerAPI JWKS endpoint) or another URL you control, set once at integration time. The library fetches whatever URL you pass, so passing untrusted user input would let a caller direct the library to fetch arbitrary endpoints on the host's behalf.
 
 ### Keeping records for years (offline verification)
 
@@ -268,14 +270,14 @@ A supplied `jwks` takes precedence over `jwksUrl` and is used exactly as given: 
 
 ### Signing scheme versions (v1 / v2)
 
-InsumerAPI signs attestations with one of two schemes; the `kid` on each response selects which, and this library verifies **both automatically** — you don't need to do anything:
+InsumerAPI signs attestations with one of two schemes; the `kid` on each response selects which, and this library verifies **both automatically**; you don't need to do anything:
 
-- **`insumer-attest-v1`** — signature over the bare `JSON.stringify({id, pass, results, attestedAt})`. Frozen.
-- **`insumer-attest-v2`** — signature over a domain-separated, canonical preimage: `"insumer.attestation.v2\n"` + recursive-sorted-key canonical JSON of `{v:2, id, pass, results, attestedAt}`. Condition hashes use the same recursive canonicalization. In a v2 `evaluatedCondition`, `threshold` is a canonical decimal **string** and there is no `decimals` field.
+- **`insumer-attest-v1`**: signature over the bare `JSON.stringify({id, pass, results, attestedAt})`. Frozen.
+- **`insumer-attest-v2`**: signature over a domain-separated, canonical preimage: `"insumer.attestation.v2\n"` + recursive-sorted-key canonical JSON of `{v:2, id, pass, results, attestedAt}`. Condition hashes use the same recursive canonicalization. In a v2 `evaluatedCondition`, `threshold` is a canonical decimal **string** and there is no `decimals` field.
 
 All newly issued API keys are v2. The JWKS publishes five entries over two keys: three `kid`s over the same ECDSA key (`insumer-attest-v1`, `insumer-attest-v2`, `insumer-trust-v2`), followed by two RFC 9964 `AKP` entries for the ML-DSA-65 post-quantum key (`insumer-attest-pq1`, `insumer-trust-pq1`); resolve every key by `kid`, never by position. This library verifies both attestations (`verifyAttestation`) and trust profiles (`verifyTrustProfile`, below), selecting the scheme from the `kid` on each response.
 
-> When you create a v2 key, send `/v1/attest` `threshold` values as decimal **strings** (`"100"`), not numbers — a JSON number is rejected with 400. This is a request-side requirement; it does not affect verification.
+> When you create a v2 key, send `/v1/attest` `threshold` values as decimal **strings** (`"100"`), not numbers: a JSON number is rejected with 400. This is a request-side requirement; it does not affect verification.
 
 ## Post-quantum signature (fifth verdict)
 
@@ -378,13 +380,13 @@ Verifies a wallet trust profile from `POST /v1/trust` (or a single entry of `POS
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `response` | `unknown` | The `POST /v1/trust` response envelope `{ok, data: {trust, sig, kid}, meta}`, or a bare `{trust, sig, kid}` entry from a batch response |
-| `options.maxAge` | `number` | Optional max age in seconds — applied to both `profiledAt` and each dimension's on-chain `blockTimestamp` |
+| `options.maxAge` | `number` | Optional max age in seconds: applied to both `profiledAt` and each dimension's on-chain `blockTimestamp` |
 | `options.clockSkew` | `number` | Clock-skew allowance in seconds for the freshness and expiry checks (default `60`; `0` disables) |
 | `options.jwksUrl` | `string` | Optional JWKS URL for dynamic key discovery |
 | `options.jwks` | `{ keys: JwksKey[] }` | A saved key set; same meaning as on `verifyAttestation` |
 | `options.pqRequiredFrom`, `options.mode`, `options.pqActivatedAt` | | Same meaning as on `verifyAttestation`; the post-quantum signature on a trust profile carries `pqKid: insumer-trust-pq1` |
 
-The scheme is selected by `kid`: `insumer-trust-v2` (domain-separated canonical preimage) or `insumer-attest-v1` (legacy bare-JSON). Pass the `trust` object exactly as received — do **not** rebuild it, since the v1 scheme signs `JSON.stringify` output in insertion order. For `POST /v1/trust/batch`, call once per `data.results[i]` entry.
+The scheme is selected by `kid`: `insumer-trust-v2` (domain-separated canonical preimage) or `insumer-attest-v1` (legacy bare-JSON). Pass the `trust` object exactly as received; do **not** rebuild it, since the v1 scheme signs `JSON.stringify` output in insertion order. For `POST /v1/trust/batch`, call once per `data.results[i]` entry.
 
 **Checks that were not evaluated (spec 11.3).** A curated check on a chain whose wallet was not supplied in the request (Solana, XRPL, Stellar, Sui) stays in the signed profile with `evaluated: false`, `reason: "wallet_not_provided"`, and `requires` naming the parameter; it carries no chain anchor, its `met` is `false`, and it is counted in the dimension's `notEvaluatedCount` and the summary's `totalNotEvaluated` rather than in pass or fail. The verifier does not reinterpret these checks: they are signed content, so the classical and post-quantum signature checks cover them exactly as issued; the freshness check skips them because they carry no `blockTimestamp`; and the profile's own counts are authoritative. Do not read an unevaluated check as evidence that its condition was not met.
 
@@ -393,7 +395,7 @@ Returns `Promise<TrustVerifyResult>`:
 ```typescript
 interface TrustVerifyResult {
   valid: boolean;       // true only if ALL checks pass
-  trust?: TrustProfile; // the verified profile — render THIS (gated on valid), not your own copy
+  trust?: TrustProfile; // the verified profile: render THIS (gated on valid), not your own copy
   checks: {
     signature: { passed: boolean; reason?: string };
     freshness: { passed: boolean; reason?: string };
@@ -483,7 +485,7 @@ The [`examples/`](./examples/) directory contains runnable scripts covering comm
 | [`basic-attest.mjs`](./examples/basic-attest.mjs) | Single token balance check + verification |
 | [`multi-condition.mjs`](./examples/multi-condition.mjs) | Multiple conditions across different chains |
 | [`jwt-format.mjs`](./examples/jwt-format.mjs) | JWT format for gateway integration (signature check only; see "What `valid` does not tell you") |
-| [`verify-manual.mjs`](./examples/verify-manual.mjs) | DIY verification with Web Crypto — no library, proving the format is open |
+| [`verify-manual.mjs`](./examples/verify-manual.mjs) | DIY verification with Web Crypto, no library, proving the format is open |
 | [`express-gate.mjs`](./examples/express-gate.mjs) | Express route gated on an attestation: server-chosen conditions, proven wallet, replay check |
 | [`xrpl-trustline.mjs`](./examples/xrpl-trustline.mjs) | XRPL trust line tokens (RLUSD, USDC) |
 | [`verify-trust.mjs`](./examples/verify-trust.mjs) | Trust profile verification + batch |
@@ -497,7 +499,7 @@ INSUMER_API_KEY=insr_live_... node examples/basic-attest.mjs
 
 In your own project, `npm install insumer-verify` instead.
 
-The attestation format is an open standard — `verify-manual.mjs` demonstrates full verification using only the Web Crypto API with no dependencies. See the [State Attestation Spec](https://insumermodel.com/state-attestation-spec) for the complete format definition.
+The attestation format is an open standard: `verify-manual.mjs` demonstrates full verification using only the Web Crypto API with no dependencies. See the [State Attestation Spec](https://insumermodel.com/state-attestation-spec) for the complete format definition.
 
 ## Pricing
 
