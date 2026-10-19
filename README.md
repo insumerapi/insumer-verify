@@ -507,9 +507,11 @@ The attestation format is an open standard: `verify-manual.mjs` demonstrates ful
 
 **Volume discounts:** $5–$99 = $0.04/call (25 credits/$1) · $100–$499 = $0.03 (33/$1, 25% off) · $500+ = $0.02 (50/$1, 50% off)
 
-**Platform wallets:**
-- **EVM (USDC/USDT):** `0xAd982CB19aCCa2923Df8F687C0614a7700255a23`
-- **Solana (USDC/USDT):** `6a1mLjefhvSJX1sEX8PTnionbE9DqoYjU6F6bNkT4Ydr`
+**Platform wallets** (the address depends on the token):
+- **USDC on Ethereum, Base, Polygon, Arbitrum, Optimism or Avalanche:** `0xee432065474D2C852700f74e3fD81e2Bcc16a3D4`
+- **USDT on any EVM chain, and USDC or USDT on BNB Chain:** `0xAd982CB19aCCa2923Df8F687C0614a7700255a23`
+- **USDC on Solana:** `8fyEGM5tRjMocKQWaVXyM2XvvnTxR3sWdrYtug2zeLX4`
+- **USDT on Solana:** `6a1mLjefhvSJX1sEX8PTnionbE9DqoYjU6F6bNkT4Ydr`
 - **Bitcoin:** `bc1qg7qnerdhlmdn899zemtez5tcx2a2snc0dt9dt0`
 - **Tron (USDT-TRC20):** `TC5yvwkAMakkXtUxYiu2Yn1xbBcwYuD6cn`
 
