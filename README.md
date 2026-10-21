@@ -507,15 +507,12 @@ The attestation format is an open standard: `verify-manual.mjs` demonstrates ful
 
 **Volume discounts:** $5–$99 = $0.04/call (25 credits/$1) · $100–$499 = $0.03 (33/$1, 25% off) · $500+ = $0.02 (50/$1, 50% off)
 
-**Platform wallets** (the address depends on the token):
+**Platform wallets** for key and credit purchases (USDC only):
 - **USDC on Ethereum, Base, Polygon, Arbitrum, Optimism or Avalanche:** `0xee432065474D2C852700f74e3fD81e2Bcc16a3D4`
-- **USDT on any EVM chain, and USDC or USDT on BNB Chain:** `0xAd982CB19aCCa2923Df8F687C0614a7700255a23`
+- **USDC on BNB Chain:** `0xAd982CB19aCCa2923Df8F687C0614a7700255a23`
 - **USDC on Solana:** `8fyEGM5tRjMocKQWaVXyM2XvvnTxR3sWdrYtug2zeLX4`
-- **USDT on Solana:** `6a1mLjefhvSJX1sEX8PTnionbE9DqoYjU6F6bNkT4Ydr`
-- **Bitcoin:** `bc1qg7qnerdhlmdn899zemtez5tcx2a2snc0dt9dt0`
-- **Tron (USDT-TRC20):** `TC5yvwkAMakkXtUxYiu2Yn1xbBcwYuD6cn`
 
-**Supported payment chains:** Ethereum, Base, Polygon, Arbitrum, Optimism, BNB Chain, Avalanche, Solana, Bitcoin, Tron. Tokens sent on unsupported chains cannot be recovered. All purchases are final and non-refundable. [Full pricing →](https://insumermodel.com/pricing/)
+**Supported payment chains:** USDC on Ethereum, Base, Polygon, Arbitrum, Optimism, BNB Chain, Avalanche and Solana. Other tokens and chains are refused. The wallet that paid signs a short text naming the payment and sends it as `senderSignature` (see the [API reference](https://insumermodel.com/developers/api-reference/)). Tokens sent on unsupported chains cannot be recovered. All purchases are final and non-refundable. [Full pricing →](https://insumermodel.com/pricing/)
 
 ## License
 
