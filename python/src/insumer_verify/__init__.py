@@ -24,7 +24,7 @@ from .verify import (
     verify_trust_profile,
 )
 
-__version__ = "1.9.2.1"
+__version__ = "1.10.0"
 
 __all__ = [
     "verify_attestation",

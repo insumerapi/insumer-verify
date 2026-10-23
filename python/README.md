@@ -102,6 +102,8 @@ if result["valid"]:
 
 For `POST /v1/trust/batch`, call it once per entry of `data["results"]`.
 
+`checks` carries five verdicts on a trust profile: `signature`, `conditionHashes` (every check in every dimension recomputed), `freshness`, `expiry` and `pq`.
+
 Pass the object exactly as `json()` parsed it. Do not rebuild the `trust` object: the v1 scheme signs insertion-order JSON, so changing key order changes the signed bytes.
 
 ### Keeping records for years
@@ -136,7 +138,7 @@ With neither `jwks` nor `jwks_url`, the built-in InsumerAPI P-256 key is used fo
 | Check | What it does |
 |---|---|
 | **Signature** | ECDSA P-256 over the preimage the `kid` selects: v1 is bare `{id, pass, results, attestedAt}`; v2 is the domain tag plus canonical JSON with a `v: 2` member; trust v2 is the domain tag plus canonical JSON of the whole profile. A missing, unknown or wrong-artifact `kid` fails |
-| **Condition hashes** | Recomputes SHA-256 of each `evaluatedCondition` (canonical JSON per the scheme) and compares to `conditionHash`. A result lacking either field fails at its index |
+| **Condition hashes** | Recomputes SHA-256 of each `evaluatedCondition` (canonical JSON per the scheme) and compares to `conditionHash`. A result lacking either field fails at its index. On a trust profile, the same for every check in every dimension (`failures` named `dimension[index]`); a profile with no hashes at all predates the fields and passes with a reason |
 | **Freshness** | `blockTimestamp` age against `max_age` plus `clock_skew`. Optional |
 | **Expiry** | Whether the window has elapsed, allowing `clock_skew` past `expiresAt`, with `expiresAt` bound to the signed `attestedAt`: at most 30 minutes later (5 for a delegation verdict) plus a fixed 60-second grace, so an edited future `expiresAt` cannot extend the window |
 | **Post-quantum signature** | `pqSig` verified with ML-DSA-65 over the post-quantum domain tag plus the same classical preimage, key resolved by `pqKid`. In the JWT format, `pqJwt` is verified over its own `header.payload` and bound to `jwt` by the full claim set. Reported as `verified`, `refuted`, `absent` or `unverifiable` |
@@ -145,6 +147,8 @@ With neither `jwks` nor `jwks_url`, the built-in InsumerAPI P-256 key is used fo
 Key selection is a verdict, not an escape. When a key set is in play and the response's `kid` selects no usable key in it, the signature check fails with that reason alone; the other checks need no key and still report their own results. Nothing is ever substituted for the key the signature claims.
 
 A deliberately deep artifact (more than 128 nested containers) is refused as a failed check that names the refusal, never a crash and never a pass. A JSON document that deep will usually fail in `json.loads` before it reaches the verifier.
+
+Merkle proofs are not checked by this package. A `proof` object requested in proof mode sits inside the signed bytes, so the signature covers its integrity, but walking the proof means fetching the block header from a node you trust and checking the branch against its `stateRoot`; the [verification guide](https://insumermodel.com/developers/verification/) describes the procedure.
 
 ## What `valid` does not tell you
 

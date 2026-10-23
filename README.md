@@ -198,7 +198,7 @@ const result = await verifyAttestation(data, { maxAge: 120 });
 
 ```html
 <script type="module">
-  import { verifyAttestation } from "https://esm.sh/insumer-verify@1.9.3";
+  import { verifyAttestation } from "https://esm.sh/insumer-verify@1.10.0";
 
   // apiResponse = attestation from your backend
   const result = await verifyAttestation(apiResponse, {
@@ -398,12 +398,15 @@ interface TrustVerifyResult {
   trust?: TrustProfile; // the verified profile: render THIS (gated on valid), not your own copy
   checks: {
     signature: { passed: boolean; reason?: string };
+    conditionHashes: { passed: boolean; failures?: string[]; reason?: string }; // every check in every dimension, named "dimension[index]"
     freshness: { passed: boolean; reason?: string };
     expiry: { passed: boolean; reason?: string };
     pq: { status: "verified" | "refuted" | "absent" | "unverifiable"; passed: boolean; kid?: string; reason?: string };
   };
 }
 ```
+
+Every check inside a trust profile carries its own `evaluatedCondition` and `conditionHash` (since October 2026), in the same shape as an attestation result, and `verifyTrustProfile` recomputes each one under the scheme the `kid` selects. A profile issued before those fields existed carries none; it passes the check with a reason saying so, so saved records stay verifiable.
 
 ```javascript
 import { verifyTrustProfile } from "insumer-verify";
@@ -424,11 +427,13 @@ if (result.valid) render(result.trust);
 | Check | What it does |
 |-------|-------------|
 | **Signature** | Verifies the ECDSA P-256 signature over the preimage the `kid` selects (v1: bare `{id, pass, results, attestedAt}`; v2: the domain tag plus canonical JSON with a `v:2` member; trust v2: the domain tag plus canonical JSON of the whole trust object) using the key the `kid` names. A missing, unknown, or wrong-artifact `kid` fails |
-| **Condition hashes** | Recomputes SHA-256 of each `evaluatedCondition` (canonical JSON per the scheme the `kid` selects; a `kid` that selects no scheme is recomputed under the v1 form, which agrees with v2 on every flat condition the API issues) and compares to `conditionHash`; a result lacking either field fails |
+| **Condition hashes** | Recomputes SHA-256 of each `evaluatedCondition` (canonical JSON per the scheme the `kid` selects; a `kid` that selects no scheme is recomputed under the v1 form, which agrees with v2 on every flat condition the API issues) and compares to `conditionHash`; a result lacking either field fails. On a trust profile, the same for every check in every dimension (failures named `dimension[index]`); a profile with no hashes at all predates the fields and passes with a reason |
 | **Freshness** | Checks `blockTimestamp` age against caller-defined `maxAge` plus the `clockSkew` allowance (optional, skipped if `maxAge` is not set) |
 | **Expiry** | Checks whether the attestation's validity window has elapsed, allowing `clockSkew` seconds past `expiresAt`, and anchors the window to the signed `attestedAt`: `expiresAt` is bounded by `attestedAt` + 30 minutes (5 for a delegation verdict) plus the fixed 60-second binding grace (`EXPIRY_BINDING_GRACE_MS`, a verifier tolerance the spec permits), so a tampered future `expiresAt` cannot extend the window |
 | **Post-quantum signature** | Verifies `pqSig` with ML-DSA-65 over the post-quantum domain tag plus the same classical preimage, key resolved by `pqKid`; in the JWT format, verifies `pqJwt` over its own `header.payload` and binds it to the `jwt` by the full claim set; always reported once the token parses and names the response's `kid`, including when a later check fails; reported as `verified`, `refuted`, `absent`, or `unverifiable` (spec Check 6). Needs the optional `@noble/post-quantum` peer; without it a present post-quantum signature is `unverifiable` |
 | **Tokens in the response** (`checks.jwt`) | Only when a response object carries `data.jwt` beside `data.attestation`, which is what `format: "jwt"` returns. The tokens are verified too and bound to the attestation just verified: the ES256 signature of `jwt` under the same `kid`, its condition hashes, that it is the token of this attestation (`jti`, `pass`, `results`, `exp` equal the attestation's), and its post-quantum `pqJwt` over the full claim set, reported as `checks.jwt.pq`. A failure fails `valid`. Absent from the result when the response carries no tokens, so every other shape reports exactly the five verdicts above |
+
+**Merkle proofs are not checked here.** When a response was requested in proof mode, the `proof` object on each result (an EIP-1186 account or storage proof) sits inside the signed bytes, so the signature check covers its integrity, but this library does not walk the proof. Checking a proof means fetching that block's header from a node you trust and verifying the branch against its `stateRoot`; the [verification guide](https://insumermodel.com/developers/verification/) describes the procedure. Treat `valid: true` as "InsumerAPI issued this, unmodified", never as "the proof was recomputed".
 
 ## What `valid` does not tell you
 

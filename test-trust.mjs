@@ -301,6 +301,75 @@ try {
     assert(r.valid === true, "fresh profiledAt + fresh nested block passes under maxAge");
   }
 
+  // ── Condition hashes inside the profile (every check carries one since October 2026) ──
+
+  const sha256hex = async (str) =>
+    "0x" + Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)))).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const v1Form = (ec) => JSON.stringify(ec, Object.keys(ec).sort());
+  async function makeHashedTrust({ v2 = true, breakHash = false, dropHash = false } = {}) {
+    const trust = makeTrustPayload({ v2 });
+    const ec = { type: "token_balance", chainId: 1, contractAddress: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", operator: "gte", threshold: 0, decimals: 6 };
+    for (const dim of Object.values(trust.dimensions)) {
+      for (const c of dim.checks) {
+        c.evaluatedCondition = ec;
+        c.conditionHash = await sha256hex(v2 ? canonicalize(ec) : v1Form(ec));
+      }
+    }
+    if (breakHash) trust.dimensions.tokenHoldings.checks[0].conditionHash = "0x" + "00".repeat(32);
+    if (dropHash) delete trust.dimensions.tokenHoldings.checks[0].conditionHash;
+    return trust;
+  }
+
+  // 23. v2: every check's hash recomputes → passes with no reason
+  {
+    const trust = await makeHashedTrust({ v2: true });
+    const sig = await sign(priv, V2_TRUST_DOMAIN + "\n" + canonicalize(trust));
+    const r = await verifyTrustProfile(wrap(trust, sig, V2_TRUST_KID), { jwksUrl: JWKS });
+    assert(r.valid === true && r.checks.conditionHashes.passed === true && r.checks.conditionHashes.reason === undefined,
+      "v2 profile with matching condition hashes passes the hash check");
+  }
+
+  // 24. v1: the sorted-key form is the one recomputed under the v1 kid
+  {
+    const trust = await makeHashedTrust({ v2: false });
+    const sig = await sign(priv, JSON.stringify(trust));
+    const r = await verifyTrustProfile(wrap(trust, sig, V1_KID), { jwksUrl: JWKS });
+    assert(r.valid === true && r.checks.conditionHashes.passed === true, "v1 profile with matching condition hashes passes the hash check");
+  }
+
+  // 25. a wrong hash, signed as issued, fails the hash verdict alone and names the check
+  {
+    const trust = await makeHashedTrust({ v2: true, breakHash: true });
+    const sig = await sign(priv, V2_TRUST_DOMAIN + "\n" + canonicalize(trust));
+    const r = await verifyTrustProfile(wrap(trust, sig, V2_TRUST_KID), { jwksUrl: JWKS });
+    assert(r.checks.signature.passed === true, "wrong hash: signature still verifies (signed as issued)");
+    assert(r.checks.conditionHashes.passed === false && r.valid === false, "wrong hash fails the profile");
+    assert(JSON.stringify(r.checks.conditionHashes.failures) === JSON.stringify(["tokenHoldings[0]"]), "failure names dimension[index]");
+  }
+
+  // 26. a check missing its hash while others carry one fails at that check
+  {
+    const trust = await makeHashedTrust({ v2: true, dropHash: true });
+    const sig = await sign(priv, V2_TRUST_DOMAIN + "\n" + canonicalize(trust));
+    const r = await verifyTrustProfile(wrap(trust, sig, V2_TRUST_KID), { jwksUrl: JWKS });
+    assert(r.checks.conditionHashes.passed === false && r.checks.conditionHashes.failures[0] === "tokenHoldings[0]", "missing hash on one check fails at that check");
+  }
+
+  // 27. a profile with no hashes anywhere (issued before the fields) passes with a reason
+  {
+    const trust = makeTrustPayload({ v2: true });
+    const sig = await sign(priv, V2_TRUST_DOMAIN + "\n" + canonicalize(trust));
+    const r = await verifyTrustProfile(wrap(trust, sig, V2_TRUST_KID), { jwksUrl: JWKS });
+    assert(r.valid === true && r.checks.conditionHashes.passed === true && /No condition hashes/.test(r.checks.conditionHashes.reason || ""),
+      "profile without condition hashes passes the hash check with a reason");
+  }
+
+  // 28. parse failure reports the hash verdict as skipped
+  {
+    const r = await verifyTrustProfile({ ok: true, data: {} }, { jwksUrl: JWKS });
+    assert(r.checks.conditionHashes.passed === false && /Skipped/.test(r.checks.conditionHashes.reason || ""), "parse failure skips the hash check");
+  }
+
   // ── Clock-skew allowance (options.clockSkew, default 60s; spec Section 9.4) ──
 
   // 19. expiry: 30s past expiresAt is inside the default allowance; clockSkew: 0 refuses it;

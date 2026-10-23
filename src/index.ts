@@ -877,6 +877,21 @@ async function checkJwtSignature(
   }
 }
 
+// "0x" + hex(SHA-256(canonical JSON of the evaluated condition)), matching the server by
+// scheme: v1 = sorted-key array-replacer (top level only); v2 = recursive-sorted-key
+// canonical JSON. Shared by the attestation and trust-profile paths.
+async function computeConditionHash(evaluatedCondition: unknown, isV2: boolean): Promise<string> {
+  const canonical = isV2
+    ? canonicalize(evaluatedCondition)
+    : (assertDepth(evaluatedCondition),
+      JSON.stringify(
+        evaluatedCondition,
+        Object.keys(evaluatedCondition as Record<string, unknown>).sort()
+      ));
+  const hashBuffer = await subtle!.digest("SHA-256", new TextEncoder().encode(canonical));
+  return "0x" + bytesToHex(new Uint8Array(hashBuffer));
+}
+
 async function checkConditionHashes(
   results: AttestationResult[],
   kid?: string
@@ -897,20 +912,7 @@ async function checkConditionHashes(
       continue;
     }
 
-    // Canonical JSON, matching the server by scheme: v1 = sorted-key array-replacer;
-    // v2 = recursive-sorted-key canonical JSON.
-    const canonical = isV2
-      ? canonicalize(r.evaluatedCondition)
-      : (assertDepth(r.evaluatedCondition),
-        JSON.stringify(
-          r.evaluatedCondition,
-          Object.keys(r.evaluatedCondition).sort()
-        ));
-    const hashBuffer = await subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(canonical)
-    );
-    const computed = "0x" + bytesToHex(new Uint8Array(hashBuffer));
+    const computed = await computeConditionHash(r.evaluatedCondition, isV2);
 
     if (computed !== r.conditionHash) {
       failures.push(i);
@@ -1250,8 +1252,11 @@ export async function verifyAttestation(
 //   insumer-attest-v1 → bare JSON.stringify(trust)            (v1, frozen)
 //   insumer-trust-v2  → "insumer.trust.v2\n" + canonical JSON (v2, domain-separated)
 //
-// A trust profile is signed as a whole. Unlike an attestation there are no
-// per-result conditionHash values, so there is no condition-hash check here.
+// A trust profile is signed as a whole. Since October 2026 every check inside its
+// dimensions also carries evaluatedCondition and conditionHash, in the shape of an
+// attestation result, hashed under the scheme the kid selects (trust v2 = canonical
+// JSON; v1 = the sorted-key form). checkTrustConditionHashes recomputes them. A
+// profile issued before the fields existed carries none, and reads as "not present".
 
 const V2_TRUST_DOMAIN = "insumer.trust.v2";
 const V2_TRUST_KID = "insumer-trust-v2";
@@ -1279,9 +1284,15 @@ export interface TrustVerifyResult {
   trust?: TrustProfile;
   checks: {
     signature: CheckResult;
+    /**
+     * Recomputed conditionHash of every check in every dimension (keyed "dimension[index]"
+     * in `failures`). Passes with a reason when the profile carries no condition hashes at
+     * all (issued before they were added).
+     */
+    conditionHashes: CheckResult & { failures?: string[] };
     freshness: CheckResult;
     expiry: CheckResult;
-    /** Post-quantum companion (pqKid insumer-trust-pq1), reported as a fourth, independent verdict. */
+    /** Post-quantum companion (pqKid insumer-trust-pq1), reported as an independent verdict. */
     pq: PqCheckResult;
   };
 }
@@ -1397,6 +1408,60 @@ async function checkTrustSignature(
   }
 }
 
+// Condition hashes on a trust profile (spec Check 2, applied per check). Every check in
+// every dimension carries evaluatedCondition + conditionHash since October 2026; each is
+// recomputed under the scheme the kid selects and compared. A profile with no hash on any
+// check predates the fields and passes with a reason; once any check carries one, every
+// check must carry both and match, and the failing ones are named "dimension[index]".
+async function checkTrustConditionHashes(
+  trust: TrustProfile,
+  kid?: string
+): Promise<CheckResult & { failures?: string[] }> {
+  if (!subtle) {
+    return { passed: false, reason: "Web Crypto API not available" };
+  }
+  const dims = trust.dimensions;
+  const entries: [string, unknown][] = Array.isArray(dims)
+    ? dims.map((d, i) => [String(i), d] as [string, unknown])
+    : dims && typeof dims === "object"
+      ? Object.entries(dims as Record<string, unknown>)
+      : [];
+
+  const checks: { key: string; check: Record<string, unknown> }[] = [];
+  for (const [name, dim] of entries) {
+    const list = dim && typeof dim === "object" ? (dim as Record<string, unknown>).checks : undefined;
+    if (!Array.isArray(list)) continue;
+    list.forEach((c, i) => {
+      checks.push({ key: `${name}[${i}]`, check: c && typeof c === "object" ? (c as Record<string, unknown>) : {} });
+    });
+  }
+
+  const anyHash = checks.some((c) => c.check.conditionHash || c.check.evaluatedCondition);
+  if (!anyHash) {
+    return { passed: true, reason: "No condition hashes in this profile (issued before trust checks carried them)" };
+  }
+
+  const isV2 = kid === V2_TRUST_KID;
+  const failures: string[] = [];
+  for (const { key, check } of checks) {
+    if (!check.evaluatedCondition || typeof check.conditionHash !== "string") {
+      failures.push(key);
+      continue;
+    }
+    const computed = await computeConditionHash(check.evaluatedCondition, isV2);
+    if (computed !== check.conditionHash) failures.push(key);
+  }
+
+  if (failures.length > 0) {
+    return {
+      passed: false,
+      failures,
+      reason: `Condition hash mismatch at check(s): ${failures.join(", ")}`,
+    };
+  }
+  return { passed: true };
+}
+
 // Same clock-skew allowance as the attestation path (options.clockSkew, Section 9.4).
 function checkTrustFreshness(trust: TrustProfile, maxAge: number | undefined, skewMs: number): CheckResult {
   if (maxAge === undefined) {
@@ -1464,12 +1529,14 @@ function checkTrustExpiry(expiresAt: string, skewMs: number): CheckResult {
 /**
  * Verify an InsumerAPI trust profile from POST /v1/trust.
  *
- * Reports four independent verdicts:
- * 1. **Signature** — ECDSA P-256 over the scheme selected by `kid`
- * 2. **Freshness** — profiledAt AND per-dimension on-chain blockTimestamp age vs
+ * Reports five independent verdicts:
+ * 1. **Signature**: ECDSA P-256 over the scheme selected by `kid`
+ * 2. **Condition hashes**: every check's conditionHash recomputed from its
+ *    evaluatedCondition (passes with a reason on a profile issued before the fields existed)
+ * 3. **Freshness**: profiledAt AND per-dimension on-chain blockTimestamp age vs
  *    caller-defined maxAge (optional)
- * 3. **Expiry** — whether the profile window has elapsed
- * 4. **Post-quantum companion** — verified / refuted / absent / unverifiable (spec Check 6)
+ * 4. **Expiry**: whether the profile window has elapsed
+ * 5. **Post-quantum companion**: verified / refuted / absent / unverifiable (spec Check 6)
  *
  * Rejects any object that is not shaped like a trust profile (guards the shared
  * v1 kid). On success, returns the verified profile as `result.trust` — render
@@ -1497,6 +1564,7 @@ export async function verifyTrustProfile(
       valid: false,
       checks: {
         signature: { passed: false, reason },
+        conditionHashes: { passed: false, reason: "Skipped (parse failed)" },
         freshness: { passed: false, reason: "Skipped (parse failed)" },
         expiry: { passed: false, reason: "Skipped (parse failed)" },
         pq: { status: "unverifiable", passed: false, reason: "Skipped (parse failed)" },
@@ -1516,6 +1584,9 @@ export async function verifyTrustProfile(
 
   const skewMs = clockSkewMs(options);
   const signature = keyProblem ? failedCheck(keyProblem) : await checkTrustSignature(trust, sig, keyJwk, kid);
+  // Guarded like the attestation path: a condition too deep to canonicalize is a failed
+  // verdict, never a thrown call.
+  const conditionHashes = await guardedCheck(() => checkTrustConditionHashes(trust, kid), failedCheck);
   const freshness = checkTrustFreshness(trust, options?.maxAge, skewMs);
   const expiry = checkTrustExpiry(String(trust.expiresAt), skewMs);
   // Post-quantum companion over the same classical trust preimage the kid selects,
@@ -1540,8 +1611,8 @@ export async function verifyTrustProfile(
   );
 
   return {
-    valid: signature.passed && freshness.passed && expiry.passed && pq.passed,
+    valid: signature.passed && conditionHashes.passed && freshness.passed && expiry.passed && pq.passed,
     trust,
-    checks: { signature, freshness, expiry, pq },
+    checks: { signature, conditionHashes, freshness, expiry, pq },
   };
 }

@@ -386,6 +386,14 @@ def condition_hash(evaluated_condition: Any, kid: Any) -> str:
     return "0x" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def trust_condition_hash(evaluated_condition: Any, kid: Any) -> str:
+    """The same hash for a check inside a trust profile: canonical JSON under ``insumer-trust-v2``, the v1 form otherwise."""
+    import hashlib
+
+    canonical = canonicalize(evaluated_condition) if kid == V2_TRUST_KID else v1_condition_canonical(evaluated_condition)
+    return "0x" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 # ── Checks ───────────────────────────────────────────────────────────
 
 
@@ -745,12 +753,47 @@ def _check_trust_expiry(expires_at: str, skew_ms: int) -> Check:
     return {"passed": True}
 
 
+def _check_trust_condition_hashes(trust: Dict[str, Any], kid: Any) -> Check:
+    # Condition hashes on a trust profile (spec Check 2, applied per check). Every check in
+    # every dimension carries evaluatedCondition + conditionHash since October 2026; each is
+    # recomputed under the scheme the kid selects. A profile with no hash on any check
+    # predates the fields and passes with a reason; once any check carries one, every check
+    # must carry both and match, and the failing ones are named "dimension[index]".
+    dims = trust.get("dimensions")
+    if isinstance(dims, list):
+        entries = [(str(i), d) for i, d in enumerate(dims)]
+    elif isinstance(dims, dict):
+        entries = list(dims.items())
+    else:
+        entries = []
+    checks: List[Any] = []
+    for name, dim in entries:
+        lst = dim.get("checks") if isinstance(dim, dict) else None
+        if not isinstance(lst, list):
+            continue
+        for i, c in enumerate(lst):
+            checks.append((f"{name}[{i}]", c if isinstance(c, dict) else {}))
+    if not any(not js_falsy(c.get("conditionHash")) or not js_falsy(c.get("evaluatedCondition")) for _, c in checks):
+        return {"passed": True, "reason": "No condition hashes in this profile (issued before trust checks carried them)"}
+    failures: List[str] = []
+    for key, c in checks:
+        ec = c.get("evaluatedCondition")
+        if js_falsy(ec) or not isinstance(c.get("conditionHash"), str):
+            failures.append(key)
+            continue
+        if trust_condition_hash(ec, kid) != c["conditionHash"]:
+            failures.append(key)
+    if failures:
+        return {"passed": False, "failures": failures, "reason": "Condition hash mismatch at check(s): " + ", ".join(failures)}
+    return {"passed": True}
+
+
 def verify_trust_profile(response: Any, **options: Any) -> Dict[str, Any]:
     """Verify an InsumerAPI trust profile from ``POST /v1/trust``.
 
     Accepts the full response envelope or a bare ``{trust, sig, kid}`` entry
-    from ``POST /v1/trust/batch``. Reports four independent verdicts under
-    ``checks``: ``signature``, ``freshness``, ``expiry`` and ``pq``. On success
+    from ``POST /v1/trust/batch``. Reports five independent verdicts under
+    ``checks``: ``signature``, ``conditionHashes``, ``freshness``, ``expiry`` and ``pq``. On success
     ``trust`` is the verified profile exactly as parsed from the wire; render
     that, gated on ``valid``, never your own copy of the response.
 
@@ -765,6 +808,7 @@ def verify_trust_profile(response: Any, **options: Any) -> Dict[str, Any]:
             "valid": False,
             "checks": {
                 "signature": _failed(str(e)),
+                "conditionHashes": _failed("Skipped (parse failed)"),
                 "freshness": _failed("Skipped (parse failed)"),
                 "expiry": _failed("Skipped (parse failed)"),
                 "pq": _failed_pq("Skipped (parse failed)"),
@@ -778,6 +822,7 @@ def verify_trust_profile(response: Any, **options: Any) -> Dict[str, Any]:
     skew_ms = _clock_skew_ms(opts)
     profiled_at = "" if trust.get("profiledAt") is None else js_to_string(trust.get("profiledAt"))
     signature = _guarded(lambda: _failed(key_problem) if key_problem else _check_trust_signature(trust, sig, key_jwk, kid), _failed)
+    condition_hashes = _guarded(lambda: _check_trust_condition_hashes(trust, kid), _failed)
     freshness = _guarded(lambda: _check_trust_freshness(trust, opts.get("max_age"), skew_ms), _failed)
     expiry = _guarded(lambda: _check_trust_expiry(js_to_string(trust.get("expiresAt")), skew_ms), _failed)
     pq = _guarded(
@@ -786,7 +831,7 @@ def verify_trust_profile(response: Any, **options: Any) -> Dict[str, Any]:
         _failed_pq,
     )
     return {
-        "valid": all(c["passed"] for c in (signature, freshness, expiry, pq)),
+        "valid": all(c["passed"] for c in (signature, condition_hashes, freshness, expiry, pq)),
         "trust": trust,
-        "checks": {"signature": signature, "freshness": freshness, "expiry": expiry, "pq": pq},
+        "checks": {"signature": signature, "conditionHashes": condition_hashes, "freshness": freshness, "expiry": expiry, "pq": pq},
     }

@@ -259,3 +259,51 @@ def test_non_string_kid_is_carried_into_the_reason(v1, saved_jwks, no_network):
 def test_list_input_to_trust_is_a_missing_profile():
     out = verify_trust_profile([])
     assert out["checks"]["signature"]["reason"].startswith("Missing trust profile")
+
+
+# ── Condition hashes inside a trust profile ─────────────────────────
+
+
+def _trust_checks(profile):
+    dims = profile["data"]["trust"]["dimensions"]
+    return [c for dim in (dims.values() if isinstance(dims, dict) else dims) for c in dim["checks"]]
+
+
+def test_trust_profile_condition_hashes_are_recomputed(vectors, saved_jwks, no_network):
+    v18 = copy.deepcopy(vectors["18-trust-profile-not-evaluated"]["response"])
+    out = verify_trust_profile(v18, jwks=saved_jwks)
+    assert out["checks"]["conditionHashes"] == {"passed": True}
+    assert out["checks"]["signature"]["passed"] is True
+
+
+def test_trust_profile_with_one_wrong_hash_names_the_check(vectors, saved_jwks, no_network):
+    v18 = copy.deepcopy(vectors["18-trust-profile-not-evaluated"]["response"])
+    name, dim = next(iter(v18["data"]["trust"]["dimensions"].items()))
+    dim["checks"][1]["conditionHash"] = "0x" + "00" * 32
+    out = verify_trust_profile(v18, jwks=saved_jwks)
+    assert out["checks"]["conditionHashes"]["passed"] is False
+    assert out["checks"]["conditionHashes"]["failures"] == [f"{name}[1]"]
+    assert out["valid"] is False
+
+
+def test_trust_profile_without_any_condition_hashes_passes_with_a_reason(vectors, saved_jwks, no_network):
+    v18 = copy.deepcopy(vectors["18-trust-profile-not-evaluated"]["response"])
+    for c in _trust_checks(v18):
+        c.pop("conditionHash", None)
+        c.pop("evaluatedCondition", None)
+    out = verify_trust_profile(v18, jwks=saved_jwks)
+    assert out["checks"]["conditionHashes"]["passed"] is True
+    assert "No condition hashes" in out["checks"]["conditionHashes"]["reason"]
+
+
+def test_trust_profile_with_a_check_missing_its_hash_fails_once_others_carry_one(vectors, saved_jwks, no_network):
+    v18 = copy.deepcopy(vectors["18-trust-profile-not-evaluated"]["response"])
+    name, dim = next(iter(v18["data"]["trust"]["dimensions"].items()))
+    del dim["checks"][0]["conditionHash"]
+    out = verify_trust_profile(v18, jwks=saved_jwks)
+    assert out["checks"]["conditionHashes"]["failures"] == [f"{name}[0]"]
+
+
+def test_trust_parse_failure_reports_condition_hashes_as_skipped():
+    out = verify_trust_profile({"ok": True, "data": {}})
+    assert out["checks"]["conditionHashes"] == {"passed": False, "reason": "Skipped (parse failed)"}
