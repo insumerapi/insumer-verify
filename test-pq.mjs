@@ -76,7 +76,7 @@ for (const era of ["v1", "v2"]) {
   assert(r.checks.signature.passed && r.checks.conditionHashes.passed, `${era}: classical checks pass`);
   assert(r.checks.pq.status === "verified" && r.checks.pq.passed && r.checks.pq.kid === "insumer-attest-pq1", `${era}: pq verified`);
   assert(r.valid === true, `${era}: valid`);
-  assert(Object.keys(r.checks).length === 5, `${era}: five verdicts reported`);
+  assert(Object.keys(r.checks).length === 6, `${era}: six verdicts reported (counts added in 1.11.0)`);
 
   r = await verifyAttestation(await makeResponse(era, { tamperPq: true }), { jwksUrl: JWKS_URL });
   assert(r.checks.pq.status === "refuted" && r.valid === false && r.checks.signature.passed, `${era}: tampered companion -> refuted, valid=false, classical still passes`);
@@ -194,7 +194,7 @@ for (const era of ["v1", "v2"]) {
   const { resp, claims, sign, signPq } = await makeWhole(era);
   const clone = (o) => JSON.parse(JSON.stringify(o));
   let r = await verifyAttestation(resp, { jwksUrl: JWKS_URL });
-  assert(r.valid === true && r.checks.jwt && r.checks.jwt.passed && r.checks.jwt.pq.status === "verified" && Object.keys(r.checks).length === 6, `${era} genuine whole response -> valid, checks.jwt passed, its companion verified`);
+  assert(r.valid === true && r.checks.jwt && r.checks.jwt.passed && r.checks.jwt.pq.status === "verified" && Object.keys(r.checks).length === 7, `${era} genuine whole response -> valid, checks.jwt passed, its companion verified`);
   r = await verifyAttestation(await makeResponse(era), { jwksUrl: JWKS_URL });
   assert(r.checks.jwt === undefined && r.valid, `${era} response without tokens -> no jwt verdict, as before`);
 

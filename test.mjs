@@ -189,15 +189,50 @@ console.log("\nTest 6: Results without evaluatedCondition (must fail Check 2)");
   );
 }
 
-// Test 7: Invalid response shape
+// Test 7: Invalid response shape returns a failed verdict, never a thrown call
 console.log("\nTest 7: Invalid response shape");
 {
-  try {
-    await verifyAttestation({ foo: "bar" });
-    assert(false, "Should have thrown");
-  } catch (e) {
-    assert(e.message.includes("missing data object"), "Should throw parse error");
+  const r = await verifyAttestation({ foo: "bar" });
+  assert(r.valid === false && r.checks.signature.reason.includes("missing data object"), "Parse error is the signature's reason, valid false");
+  assert(r.checks.counts.passed === false && r.checks.pq.status === "unverifiable", "Every other check is skipped as failed");
+  const { response: good } = await generateTestAttestation();
+  const cases = [
+    ["null", null], ["undefined", undefined], ["empty object", {}], ["data null", { data: null }],
+    ["number", 42], ["array", []],
+    ["empty sig", (() => { const x = structuredClone(good); x.data.sig = ""; return x; })()],
+    ["results not an array", (() => { const x = structuredClone(good); x.data.attestation.results = "x"; return x; })()],
+    ["pass not a boolean", (() => { const x = structuredClone(good); x.data.attestation.pass = "true"; return x; })()],
+  ];
+  for (const [name, input] of cases) {
+    let r2, threw = false;
+    try { r2 = await verifyAttestation(input); } catch { threw = true; }
+    assert(!threw && r2.valid === false && r2.checks.signature.passed === false, `Malformed input (${name}) returns valid false without throwing`);
   }
+}
+
+// Test 7b: Unsigned passCount / failCount are recounted against the signed results
+console.log("\nTest 7b: passCount / failCount recounted");
+{
+  const { response } = await generateTestAttestation();
+  let r = await verifyAttestation(response);
+  assert(r.checks.counts.passed === true, "Honest counts pass");
+  const edited = structuredClone(response);
+  edited.data.attestation.passCount = 99;
+  r = await verifyAttestation(edited);
+  assert(r.checks.counts.passed === false && r.valid === false && r.checks.counts.reason.includes("passCount is 99"), "An edited passCount fails counts and valid");
+  const edited2 = structuredClone(response);
+  edited2.data.attestation.failCount = 1;
+  r = await verifyAttestation(edited2);
+  assert(r.checks.counts.passed === false && r.checks.counts.reason.includes("failCount is 1"), "An edited failCount fails counts");
+  const none = structuredClone(response);
+  delete none.data.attestation.passCount;
+  delete none.data.attestation.failCount;
+  r = await verifyAttestation(none);
+  assert(r.checks.counts.passed === true && /No passCount or failCount/.test(r.checks.counts.reason), "No counts at all passes with a reason");
+  const one = structuredClone(response);
+  delete one.data.attestation.failCount;
+  r = await verifyAttestation(one);
+  assert(r.checks.counts.passed === false, "One count present without the other fails");
 }
 
 // Test 8: Freshness skips results without blockTimestamp

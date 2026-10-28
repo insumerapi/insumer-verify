@@ -198,7 +198,7 @@ const result = await verifyAttestation(data, { maxAge: 120 });
 
 ```html
 <script type="module">
-  import { verifyAttestation } from "https://esm.sh/insumer-verify@1.10.0";
+  import { verifyAttestation } from "https://esm.sh/insumer-verify@1.11.0";
 
   // apiResponse = attestation from your backend
   const result = await verifyAttestation(apiResponse, {
@@ -279,7 +279,7 @@ All newly issued API keys are v2. The JWKS publishes five entries over two keys:
 
 > When you create a v2 key, send `/v1/attest` `threshold` values as decimal **strings** (`"100"`), not numbers: a JSON number is rejected with 400. This is a request-side requirement; it does not affect verification.
 
-## Post-quantum signature (fifth verdict)
+## Post-quantum signature (its own verdict)
 
 Responses from the API are signed twice: ES256 and a post-quantum ML-DSA-65 signature. The
 post-quantum signature is `pqSig` + `pqKid` on the raw format, and a sibling `pqJwt` (a compact JWS,
@@ -345,7 +345,7 @@ it came and the post-quantum signature is picked up from `data.pqJwt` for you.
 | `options.mode` | `"access" \| "evidence"` | `access` (default) applies the cutoff; `evidence` never refuses for a missing post-quantum signature and only reports |
 | `options.pqActivatedAt` | `string \| Date` | The anchored key-binding block time; when set, `checks.pq.existedAtIssuance` says whether a post-quantum signature could have existed when the artifact was issued. **Reporting only: it never affects `passed` or `valid`.** To enforce the post-quantum signature, set `pqRequiredFrom` |
 
-> **Common mistake:** Pass the **full API response** (`await res.json()`), not `response.data` or `response.data.attestation`. The function expects the outer envelope `{ok, data: {attestation, sig, kid}, meta}`. Passing the inner `data` object will throw `"Invalid response: missing data object"`.
+> **Common mistake:** Pass the **full API response** (`await res.json()`), not `response.data` or `response.data.attestation`. The function expects the outer envelope `{ok, data: {attestation, sig, kid}, meta}`. Passing the inner `data` object returns `valid: false` with the signature's reason `"Invalid response: missing data object"`. Since 1.11.0 no input makes `verifyAttestation` throw: anything that is not an attestation response is a failed verdict with the parse error as its reason.
 
 Returns `Promise<VerifyResult>`:
 
@@ -355,6 +355,7 @@ interface VerifyResult {
   checks: {
     signature: { passed: boolean; reason?: string };
     conditionHashes: { passed: boolean; failures?: number[]; reason?: string };
+    counts: { passed: boolean; reason?: string }; // since 1.11.0: unsigned passCount / failCount recounted from the signed results
     freshness: { passed: boolean; reason?: string };
     expiry: { passed: boolean; reason?: string };
     pq: {
@@ -428,6 +429,7 @@ if (result.valid) render(result.trust);
 |-------|-------------|
 | **Signature** | Verifies the ECDSA P-256 signature over the preimage the `kid` selects (v1: bare `{id, pass, results, attestedAt}`; v2: the domain tag plus canonical JSON with a `v:2` member; trust v2: the domain tag plus canonical JSON of the whole trust object) using the key the `kid` names. A missing, unknown, or wrong-artifact `kid` fails |
 | **Condition hashes** | Recomputes SHA-256 of each `evaluatedCondition` (canonical JSON per the scheme the `kid` selects; a `kid` that selects no scheme is recomputed under the v1 form, which agrees with v2 on every flat condition the API issues) and compares to `conditionHash`; a result lacking either field fails. On a trust profile, the same for every check in every dimension (failures named `dimension[index]`); a profile with no hashes at all predates the fields and passes with a reason |
+| **Counts** (`checks.counts`, since 1.11.0) | `passCount` and `failCount` are not signed, so they are recounted from the signed `results` (each `met` that is `true` or `false`); a count that disagrees, or one present without the other, fails. Neither present passes with a reason; a JWT carries no counts and reports it as not applicable (spec Check 2a) |
 | **Freshness** | Checks `blockTimestamp` age against caller-defined `maxAge` plus the `clockSkew` allowance (optional, skipped if `maxAge` is not set) |
 | **Expiry** | Checks whether the attestation's validity window has elapsed, allowing `clockSkew` seconds past `expiresAt`, and anchors the window to the signed `attestedAt`: `expiresAt` is bounded by `attestedAt` + 30 minutes (5 for a delegation verdict) plus the fixed 60-second binding grace (`EXPIRY_BINDING_GRACE_MS`, a verifier tolerance the spec permits), so a tampered future `expiresAt` cannot extend the window |
 | **Post-quantum signature** | Verifies `pqSig` with ML-DSA-65 over the post-quantum domain tag plus the same classical preimage, key resolved by `pqKid`; in the JWT format, verifies `pqJwt` over its own `header.payload` and binds it to the `jwt` by the full claim set; always reported once the token parses and names the response's `kid`, including when a later check fails; reported as `verified`, `refuted`, `absent`, or `unverifiable` (spec Check 6). Needs the optional `@noble/post-quantum` peer; without it a present post-quantum signature is `unverifiable` |
@@ -443,7 +445,7 @@ if (result.valid) render(result.trust);
 2. **Pin the conditions.** Compare every `results[i].evaluatedCondition` (or its `conditionHash`) with the conditions your route requires. Never trust `label`: the caller writes it.
 3. **Bind the wallet.** The raw format signs no wallet for most condition types (only `erc8004_agent` and `erc7710_delegation` carry one, inside `evaluatedCondition`), so a raw attestation does not show whose wallet was read. Either call the API from your own server for a wallet the user has proved control of (for example by signing a one-time challenge), or require `format: "jwt"` and match `sub` against that proven wallet. `sub` names only the first evaluated chain family, in the order EVM, Solana, XRPL, Bitcoin, Tron, Stellar, Sui; wallets of other families in the same request are evaluated but not named.
 4. **Reject replays by id.** Remember each attestation `id` (JWT `jti`) until it expires and refuse it a second time (spec Section 13.2). Never deduplicate on the signature or the token bytes: a different valid signature over the same bytes can be derived from a genuine one without the key.
-5. **Treat only signed fields as evidence.** The signature covers `id`, `pass`, `results` and `attestedAt`. `passCount`, `failCount`, `expiresAt`, `ok` and `meta` are outside it. `expiresAt` is bound to `attestedAt` by Check 4; derive counts from `results` if you need them.
+5. **Treat only signed fields as evidence.** The signature covers `id`, `pass`, `results` and `attestedAt`. `passCount`, `failCount`, `expiresAt`, `ok` and `meta` are outside it. `expiresAt` is bound to `attestedAt` by Check 4, and since 1.11.0 the counts are recounted from `results` (`checks.counts`). Read no other unsigned field as part of the attestation.
 
 [`examples/express-gate.mjs`](./examples/express-gate.mjs) applies all five.
 

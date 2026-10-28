@@ -17,6 +17,13 @@ export interface VerifyResult {
   checks: {
     signature: CheckResult;
     conditionHashes: CheckResult & { failures?: number[] };
+    /**
+     * passCount and failCount are NOT signed (spec Section 3.3): they travel beside the signed
+     * `results`. This verdict recounts the signed results and fails when either count disagrees,
+     * so a reader never relies on an edited count. Passes with a reason when the artifact carries
+     * neither count, and on the JWT path, where no counts exist.
+     */
+    counts: CheckResult;
     freshness: CheckResult;
     expiry: CheckResult;
     /** Post-quantum companion signature (ML-DSA-65), reported as a fifth, independent verdict. */
@@ -1089,6 +1096,7 @@ async function verifyJwt(
       checks: {
         signature: { passed: false, reason: `JWT parse error: ${(e as Error).message}` },
         conditionHashes: { passed: false, reason: "Skipped (JWT parse failed)" },
+        counts: { passed: false, reason: "Skipped (JWT parse failed)" },
         freshness: { passed: false, reason: "Skipped (JWT parse failed)" },
         expiry: { passed: false, reason: "Skipped (JWT parse failed)" },
         pq: { status: "unverifiable", passed: false, reason: "Skipped (JWT parse failed)" },
@@ -1131,8 +1139,34 @@ async function verifyJwt(
     expiry.passed &&
     pq.passed;
 
-  return { valid, checks: { signature, conditionHashes, freshness, expiry, pq } };
+  return { valid, checks: { signature, conditionHashes, counts: JWT_NO_COUNTS, freshness, expiry, pq } };
 }
+
+// passCount / failCount sit outside the signed payload (spec Section 3.3), so anyone holding
+// the response can change them without touching the signature. They are derived values: recount
+// the signed results and require both counts to agree.
+function checkCounts(attestation: Attestation): CheckResult {
+  const a = attestation as unknown as Record<string, unknown>;
+  if (a.passCount === undefined && a.failCount === undefined) {
+    return { passed: true, reason: "No passCount or failCount on this attestation" };
+  }
+  let met = 0;
+  let notMet = 0;
+  for (const r of attestation.results) {
+    const m = r && typeof r === "object" ? (r as Record<string, unknown>).met : undefined;
+    if (m === true) met++;
+    else if (m === false) notMet++;
+  }
+  const problems: string[] = [];
+  if (a.passCount !== met) problems.push(`passCount is ${JSON.stringify(a.passCount)}, the signed results have ${met} met`);
+  if (a.failCount !== notMet) problems.push(`failCount is ${JSON.stringify(a.failCount)}, the signed results have ${notMet} not met`);
+  if (problems.length > 0) {
+    return { passed: false, reason: `Unsigned counts disagree with the signed results: ${problems.join("; ")}` };
+  }
+  return { passed: true };
+}
+
+const JWT_NO_COUNTS: CheckResult = { passed: true, reason: "Not applicable: a JWT carries no passCount or failCount" };
 
 // ── Main export ────────────────────────────────────────────────────
 
@@ -1149,6 +1183,10 @@ async function verifyJwt(
  * 3. **Freshness** — blockTimestamp age vs caller-defined maxAge (optional)
  * 4. **Expiry** — whether the attestation window has elapsed, bounded by the signed attestedAt
  * 5. **Post-quantum companion** — verified / refuted / absent / unverifiable (spec Check 6)
+ *
+ * Plus `counts`: the unsigned passCount / failCount recounted against the signed results (raw
+ * attestations only; a JWT carries no counts). Malformed input never throws: it returns
+ * `valid: false` with the parse error as the signature's reason.
  *
  * @param response JWT string or full API response object
  * @param options Optional configuration: maxAge (seconds), clockSkew (seconds, default 60), jwksUrl, jwks (a saved key set; nothing fetched)
@@ -1170,7 +1208,25 @@ export async function verifyAttestation(
     return verifyJwt(maybe.data.jwt, { ...options, pqJwt: typeof maybe.data.pqJwt === "string" ? maybe.data.pqJwt : options?.pqJwt });
   }
 
-  const parsed = parseResponse(response);
+  // Malformed input is a failed verdict, never a thrown call (the JWT and trust paths already
+  // behave this way): the parse error is the signature's reason and every other check is skipped.
+  let parsed: AttestationResponse;
+  try {
+    parsed = parseResponse(response);
+  } catch (e) {
+    const reason = (e as Error).message;
+    return {
+      valid: false,
+      checks: {
+        signature: { passed: false, reason },
+        conditionHashes: { passed: false, reason: "Skipped (parse failed)" },
+        counts: { passed: false, reason: "Skipped (parse failed)" },
+        freshness: { passed: false, reason: "Skipped (parse failed)" },
+        expiry: { passed: false, reason: "Skipped (parse failed)" },
+        pq: { status: "unverifiable", passed: false, reason: "Skipped (parse failed)" },
+      },
+    };
+  }
   const { attestation, sig, kid, pqSig, pqKid } = parsed.data;
   const hasEmbeddedJwt = !!(maybe && typeof maybe === "object" && maybe.data && (maybe.data.jwt != null || maybe.data.pqJwt != null)); // null or missing = no token to read
 
@@ -1222,9 +1278,12 @@ export async function verifyAttestation(
     ? await guardedCheck(() => checkEmbeddedJwt(maybe.data!.jwt, maybe.data!.pqJwt, attestation, kid, keyJwk, keyProblem, options), failedJwtCheck)
     : undefined;
 
+  const countsResult = await guardedCheck(() => checkCounts(attestation), failedCheck);
+
   const valid =
     signature.passed &&
     conditionHashes.passed &&
+    countsResult.passed &&
     freshness.passed &&
     expiry.passed &&
     pq.passed &&
@@ -1235,6 +1294,7 @@ export async function verifyAttestation(
     checks: {
       signature,
       conditionHashes,
+      counts: countsResult,
       freshness,
       expiry,
       pq,

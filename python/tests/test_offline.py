@@ -87,11 +87,74 @@ def test_existed_at_issuance_is_reporting_only(vectors, saved_jwks, no_network):
     assert early["checks"]["pq"]["passed"] is True
 
 
-def test_inner_data_object_is_rejected_with_the_documented_error(vectors):
-    import pytest
+def test_inner_data_object_fails_with_the_documented_reason(vectors):
+    r = verify_attestation(vectors["01-token-balance-met"]["response"]["data"])
+    assert r["valid"] is False
+    assert "missing data object" in r["checks"]["signature"]["reason"]
+    assert r["checks"]["counts"]["passed"] is False
+    assert r["checks"]["pq"]["status"] == "unverifiable"
 
-    with pytest.raises(ValueError, match="missing data object"):
-        verify_attestation(vectors["01-token-balance-met"]["response"]["data"])
+
+def test_malformed_input_never_raises(vectors):
+    import copy
+
+    good = vectors["12-pq-companion-v2"]["response"]
+
+    def edited(fn):
+        x = copy.deepcopy(good)
+        fn(x)
+        return x
+
+    cases = {
+        "None": None,
+        "empty dict": {},
+        "data None": {"data": None},
+        "number": 42,
+        "list": [],
+        "empty sig": edited(lambda x: x["data"].__setitem__("sig", "")),
+        "results not a list": edited(lambda x: x["data"]["attestation"].__setitem__("results", "x")),
+        "pass not a bool": edited(lambda x: x["data"]["attestation"].__setitem__("pass", "true")),
+    }
+    for name, value in cases.items():
+        r = verify_attestation(value)
+        assert r["valid"] is False and r["checks"]["signature"]["passed"] is False, name
+
+
+def test_unsigned_counts_are_recounted_against_the_signed_results(vectors, saved_jwks):
+    import copy
+
+    good = vectors["12-pq-companion-v2"]["response"]
+    r = verify_attestation(good, jwks=saved_jwks, mode="evidence")
+    assert r["checks"]["counts"] == {"passed": True}
+
+    x = copy.deepcopy(good)
+    x["data"]["attestation"]["passCount"] = 99
+    r = verify_attestation(x, jwks=saved_jwks, mode="evidence")
+    assert r["checks"]["signature"]["passed"] is True  # the counts are not signed
+    assert r["checks"]["counts"]["passed"] is False and r["valid"] is False
+    assert "passCount is 99" in r["checks"]["counts"]["reason"]
+
+    x = copy.deepcopy(good)
+    x["data"]["attestation"]["passCount"] = True  # JavaScript: true !== 1
+    assert verify_attestation(x, jwks=saved_jwks)["checks"]["counts"]["passed"] is False
+
+    x = copy.deepcopy(good)
+    del x["data"]["attestation"]["failCount"]
+    r = verify_attestation(x, jwks=saved_jwks)
+    assert r["checks"]["counts"]["passed"] is False
+    assert "failCount is undefined" in r["checks"]["counts"]["reason"]
+
+    x = copy.deepcopy(good)
+    del x["data"]["attestation"]["passCount"]
+    del x["data"]["attestation"]["failCount"]
+    r = verify_attestation(x, jwks=saved_jwks)
+    assert r["checks"]["counts"]["passed"] is True
+    assert r["checks"]["counts"]["reason"] == "No passCount or failCount on this attestation"
+
+
+def test_jwt_path_reports_counts_as_not_applicable(vectors, saved_jwks):
+    r = verify_attestation(vectors["26-jwt-format-whole-response"]["response"]["data"]["jwt"], jwks=saved_jwks)
+    assert r["checks"]["counts"] == {"passed": True, "reason": "Not applicable: a JWT carries no passCount or failCount"}
 
 
 def test_unknown_option_is_a_type_error(vectors):

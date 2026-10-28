@@ -57,7 +57,7 @@ if result["valid"] and res["data"]["attestation"]["pass"]:
 
 Pass the **full API response**, not `res["data"]` or the attestation object. The verifier reads the signature, `kid` and post-quantum fields beside the attestation.
 
-`valid` is true only when every check passed. Each check reports on its own under `result["checks"]`, so a failing artifact still tells you exactly what failed:
+`valid` is true only when every check passed. Each check reports on its own under `result["checks"]`, so a failing artifact still tells you exactly what failed. `counts` (since 1.11.0) recounts the unsigned `passCount` and `failCount` from the signed results. Input that is not an attestation response never raises: it returns `valid: False` with the parse error as the signature's reason. An example:
 
 ```python
 {
@@ -65,6 +65,7 @@ Pass the **full API response**, not `res["data"]` or the attestation object. The
   "checks": {
     "signature":       {"passed": False, "reason": "Signature does not match payload"},
     "conditionHashes": {"passed": True},
+    "counts":          {"passed": True},
     "freshness":       {"passed": True},
     "expiry":          {"passed": True},
     "pq":              {"status": "verified", "passed": True, "kid": "insumer-attest-pq1"},

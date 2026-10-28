@@ -565,6 +565,50 @@ def _seconds_to_ms(value: Any, claim: str) -> int:
     return int(ms)
 
 
+_MISSING = object()
+
+
+def _js_number_equals(value: Any, n: int) -> bool:
+    """``value === n`` in JavaScript, for a count read from parsed JSON."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and value == n
+
+
+def _js_shown(value: Any) -> str:
+    """``JSON.stringify(value)`` as the reference shows it in a reason; a missing field is undefined."""
+    return "undefined" if value is _MISSING else js_stringify(value)
+
+
+def _check_counts(attestation: Dict[str, Any]) -> Check:
+    """passCount / failCount sit outside the signed payload (spec Section 3.3).
+
+    Anyone holding the response can change them without touching the signature,
+    so recount the signed results and require both counts to agree.
+    """
+    pass_count = attestation.get("passCount", _MISSING)
+    fail_count = attestation.get("failCount", _MISSING)
+    if pass_count is _MISSING and fail_count is _MISSING:
+        return {"passed": True, "reason": "No passCount or failCount on this attestation"}
+    met = not_met = 0
+    for r in attestation["results"]:
+        m = r.get("met") if isinstance(r, dict) else None
+        if m is True:
+            met += 1
+        elif m is False:
+            not_met += 1
+    problems = []
+    if not _js_number_equals(pass_count, met):
+        problems.append(f"passCount is {_js_shown(pass_count)}, the signed results have {met} met")
+    if not _js_number_equals(fail_count, not_met):
+        problems.append(f"failCount is {_js_shown(fail_count)}, the signed results have {not_met} not met")
+    if problems:
+        return {"passed": False, "reason": "Unsigned counts disagree with the signed results: " + "; ".join(problems)}
+    return {"passed": True}
+
+
+def _jwt_no_counts() -> Check:
+    return {"passed": True, "reason": "Not applicable: a JWT carries no passCount or failCount"}
+
+
 def _verify_jwt(token: str, options: Dict[str, Any]) -> Dict[str, Any]:
     try:
         jwt = _parse_jwt(token)
@@ -575,6 +619,7 @@ def _verify_jwt(token: str, options: Dict[str, Any]) -> Dict[str, Any]:
             "checks": {
                 "signature": _failed(reason),
                 "conditionHashes": _failed("Skipped (JWT parse failed)"),
+                "counts": _failed("Skipped (JWT parse failed)"),
                 "freshness": _failed("Skipped (JWT parse failed)"),
                 "expiry": _failed("Skipped (JWT parse failed)"),
                 "pq": _failed_pq("Skipped (JWT parse failed)"),
@@ -597,7 +642,7 @@ def _verify_jwt(token: str, options: Dict[str, Any]) -> Dict[str, Any]:
     expiry = _guarded(lambda: _check_expiry(expires_at, skew_ms), _failed)
     pq = _guarded(lambda: _check_pq_jwt(options.get("pq_jwt"), jwt, options, attested_at), _failed_pq)
     valid = all(c["passed"] for c in (signature, condition_hashes, freshness, expiry, pq))
-    return {"valid": valid, "checks": {"signature": signature, "conditionHashes": condition_hashes, "freshness": freshness, "expiry": expiry, "pq": pq}}
+    return {"valid": valid, "checks": {"signature": signature, "conditionHashes": condition_hashes, "counts": _jwt_no_counts(), "freshness": freshness, "expiry": expiry, "pq": pq}}
 
 
 # ── Public API ───────────────────────────────────────────────────────
@@ -607,9 +652,10 @@ def verify_attestation(response: Any, **options: Any) -> Dict[str, Any]:
     """Verify an InsumerAPI attestation response.
 
     ``response`` is either the full API response object (as parsed from the
-    wire) or a JWT string from ``format: "jwt"``. Both report the same five
+    wire) or a JWT string from ``format: "jwt"``. Both report the same
     independent verdicts under ``checks``: ``signature``, ``conditionHashes``,
-    ``freshness``, ``expiry`` and ``pq`` (the post-quantum companion, with a
+    ``counts`` (the unsigned passCount / failCount recounted against the signed
+    results; not applicable to a JWT), ``freshness``, ``expiry`` and ``pq`` (the post-quantum companion, with a
     ``status`` of ``verified``, ``refuted``, ``absent`` or ``unverifiable``).
     A response object carrying ``data.jwt`` beside ``data.attestation`` also
     reports ``checks.jwt``. ``valid`` is true only when every check passed.
@@ -619,8 +665,10 @@ def verify_attestation(response: Any, **options: Any) -> Dict[str, Any]:
     ``mode`` (``"access"`` or ``"evidence"``), ``pq_required_from``,
     ``pq_activated_at`` and ``pq_jwt`` (the companion for a bare JWT string).
 
-    Raises ``ValueError`` when the object is not an attestation response at all
-    (for example the inner ``data`` object instead of the envelope).
+    Malformed input never raises: an object that is not an attestation response
+    (for example the inner ``data`` object instead of the envelope) returns
+    ``valid: False`` with the parse error as the signature's reason. Only a
+    misused option (an unknown name or a wrong type) raises ``TypeError``.
     """
     opts = _options(options)
     if isinstance(response, str):
@@ -634,7 +682,22 @@ def verify_attestation(response: Any, **options: Any) -> Dict[str, Any]:
             routed["pq_jwt"] = data["pqJwt"]
         return _verify_jwt(data["jwt"], routed)
 
-    parsed = _parse_response(response)
+    # Malformed input is a failed verdict, never a raised error (the JWT and trust
+    # paths already behave this way): the parse error is the signature's reason.
+    try:
+        parsed = _parse_response(response)
+    except ValueError as e:
+        return {
+            "valid": False,
+            "checks": {
+                "signature": _failed(str(e)),
+                "conditionHashes": _failed("Skipped (parse failed)"),
+                "counts": _failed("Skipped (parse failed)"),
+                "freshness": _failed("Skipped (parse failed)"),
+                "expiry": _failed("Skipped (parse failed)"),
+                "pq": _failed_pq("Skipped (parse failed)"),
+            },
+        }
     attestation, sig, kid, pq_sig, pq_kid = parsed["attestation"], parsed["sig"], parsed["kid"], parsed["pqSig"], parsed["pqKid"]
     has_embedded_jwt = isinstance(data, dict) and (data.get("jwt") is not None or data.get("pqJwt") is not None)
 
@@ -654,7 +717,8 @@ def verify_attestation(response: Any, **options: Any) -> Dict[str, Any]:
         or _check_pq_signature(PQ_ATTEST_DOMAIN, lambda: classical_attest_preimage(attestation, kid), pq_sig, pq_kid, opts, attested_at),
         _failed_pq,
     )
-    checks: Dict[str, Any] = {"signature": signature, "conditionHashes": condition_hashes, "freshness": freshness, "expiry": expiry, "pq": pq}
+    counts = _guarded(lambda: _check_counts(attestation), _failed)
+    checks: Dict[str, Any] = {"signature": signature, "conditionHashes": condition_hashes, "counts": counts, "freshness": freshness, "expiry": expiry, "pq": pq}
     if has_embedded_jwt:
         checks["jwt"] = _guarded(lambda: _check_embedded_jwt(data.get("jwt"), data.get("pqJwt"), attestation, kid, key_jwk, key_problem, opts), _failed)  # type: ignore[union-attr]
     valid = all(c["passed"] for c in checks.values())
