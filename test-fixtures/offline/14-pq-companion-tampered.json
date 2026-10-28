@@ -1,7 +1,7 @@
 {
   "vector": "14-pq-companion-tampered",
   "description": "Vector 12 with one byte of pqSig altered.",
-  "note": "The classical signature still verifies (it was not touched); the companion is REFUTED, and a refuted companion fails the artifact regardless of policy or mode. Expected pq status: refuted.",
+  "note": "The classical signature still verifies (it was not touched); the post-quantum signature is REFUTED, and a refuted post-quantum signature fails the artifact regardless of policy or mode. Expected pq status: refuted.",
   "options": {
     "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
   },

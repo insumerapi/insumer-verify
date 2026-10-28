@@ -1,7 +1,7 @@
 {
   "vector": "13-pq-companion-v1",
-  "description": "A v1 (frozen bare-JSON scheme) attestation carrying the same post-quantum companion.",
-  "note": "Shows the companion covers the v1 era unchanged: pqSig is over the pq domain tag + the v1 bare JSON.stringify preimage. Real response, v1 key. Expected pq status: verified.",
+  "description": "A v1 (frozen bare-JSON scheme) attestation carrying the same post-quantum signature.",
+  "note": "Shows the post-quantum signature covers the v1 era unchanged: pqSig is over the pq domain tag + the v1 bare JSON.stringify preimage. Real response, v1 key. Expected pq status: verified.",
   "options": {
     "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
   },

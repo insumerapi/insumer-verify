@@ -1,7 +1,7 @@
 {
   "vector": "12-pq-companion-v2",
-  "description": "A v2 attestation carrying the post-quantum companion (pqSig, pqKid) as issued.",
-  "note": "Real response, signed by the production ES256 key and the production ML-DSA-65 key. The pqSig companion signs \"insumer.attestation.pq1\" + \"\\n\" + the exact classical preimage the classical kid selects (ML-DSA-65, FIPS 204; key insumer-attest-pq1 in the JWKS as an RFC 9964 AKP entry). It is reported as a fifth verdict, pq, beside the four classical checks; a refuted companion always fails, an absent or unverifiable one fails only under the verifier's own pqRequiredFrom policy. Expected pq status: verified.",
+  "description": "A v2 attestation carrying the post-quantum signature (pqSig, pqKid) as issued.",
+  "note": "Real response, signed by the production ES256 key and the production ML-DSA-65 key. The post-quantum signature, pqSig, signs \"insumer.attestation.pq1\" + \"\\n\" + the exact classical preimage the classical kid selects (ML-DSA-65, FIPS 204; key insumer-attest-pq1 in the JWKS as an RFC 9964 AKP entry). It is reported as a fifth verdict, pq, beside the four classical checks; a refuted post-quantum signature always fails, an absent or unverifiable one fails only under the verifier's own pqRequiredFrom policy. Expected pq status: verified.",
   "options": {
     "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
   },

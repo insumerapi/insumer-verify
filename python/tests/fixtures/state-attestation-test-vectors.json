@@ -43,13 +43,13 @@
     ],
     "harness": "insumer-verify@1.9.2 or later, or any implementation of the contract above",
     "steps": [
-      "Select the key from the JWKS by kid. A kid matching no key is a failure, not a reason to fall back to another key. A kid this verifier does not recognise also selects no signing scheme, so it selects no preimage: the post-quantum companion is then unverifiable, never refuted, and no other era's preimage may be substituted for it. A recognised kid naming the other artifact type is a relabelled artifact and is refuted (vector 21). A kid that selects no key fails the signature verdict alone: the remaining steps need no key and are still performed and reported as their own verdicts, and a companion that was not transmitted is absent (vectors 11 and 19).",
+      "Select the key from the JWKS by kid. A kid matching no key is a failure, not a reason to fall back to another key. A kid this verifier does not recognise also selects no signing scheme, so it selects no preimage: the post-quantum signature is then unverifiable, never refuted, and no other era's preimage may be substituted for it. A recognised kid naming the other artifact type is a relabelled artifact and is refuted (vector 21). A kid that selects no key fails the signature verdict alone: the remaining steps need no key and are still performed and reported as their own verdicts, and a post-quantum signature that was not transmitted is absent (vectors 11 and 19).",
       "Rebuild the signed preimage for the scheme that kid names and verify the ECDSA P-256 signature over its SHA-256.",
       "For each result, canonicalize evaluatedCondition, take the SHA-256, and compare to conditionHash.",
       "Compare blockTimestamp against a caller-defined maximum age, if one is set.",
       "Compare expiresAt against the current time.",
-      "Resolve pqKid to the AKP key in the JWKS (unresolvable = unverifiable, never a pass). Verify the ML-DSA-65 signature in pqSig over the pq domain tag + the classical preimage rebuilt in step 2. Report the companion as its own verdict: verified, refuted, absent, or unverifiable. Refuted always fails; absent or unverifiable fail only under the verifier's own pqRequiredFrom cutoff, judged by the verifier's clock, and never when reading an artifact as evidence.",
-      "In the JWT format the companion is data.pqJwt, not pqSig: verify that compact JWS (alg ML-DSA-65, the AKP key its kid names) over its own header.payload bytes, then confirm its payload and the ES256 jwt's payload carry the identical claim set, the same member names and deeply equal values, compared as parsed JSON and never by bytes. Any difference is refuted (vectors 24 and 25). The verdict and the cutoff rule are those of the previous step.",
+      "Resolve pqKid to the AKP key in the JWKS (unresolvable = unverifiable, never a pass). Verify the ML-DSA-65 signature in pqSig over the pq domain tag + the classical preimage rebuilt in step 2. Report the post-quantum signature as its own verdict: verified, refuted, absent, or unverifiable. Refuted always fails; absent or unverifiable fail only under the verifier's own pqRequiredFrom cutoff, judged by the verifier's clock, and never when reading an artifact as evidence.",
+      "In the JWT format the post-quantum signature is data.pqJwt, not pqSig: verify that compact JWS (alg ML-DSA-65, the AKP key its kid names) over its own header.payload bytes, then confirm its payload and the ES256 jwt's payload carry the identical claim set, the same member names and deeply equal values, compared as parsed JSON and never by bytes. Any difference is refuted (vectors 24 and 25). The verdict and the cutoff rule are those of the previous step.",
       "When a response carries data.jwt beside data.attestation (what format: \"jwt\" returns), verify the tokens too and report them as their own verdict: the ES256 signature of jwt under the same kid as the response, its condition hashes as in step 3, that it is the token of this attestation (jti equals id; pass, results and exp equal the attestation's pass, results and expiresAt in whole seconds), and its pqJwt as in the previous step. A failure fails the artifact (vector 27). The signed attestation does not name the wallet; the jwt does, so a jwt that is read must have been verified."
     ],
     "expected_output_form": "Five independent verdicts, reported separately rather than collapsed into one boolean: signature, conditionHashes, freshness, expiry, pq (status verified | refuted | absent | unverifiable); and a sixth, jwt, only when the response carries tokens beside the attestation.",
@@ -858,7 +858,7 @@
     },
     "11-unresolvable-kid": {
       "description": "Vector 01 presented with a kid that resolves to no key in the JWKS.",
-      "note": "Must fail closed. A verifier that falls back to the first key in the document verifies an unknown or forged kid against whichever key is listed first. insumer-verify has refused this from 1.7.0; earlier versions fell back. Needs the jwksUrl option, since key resolution is only exercised when a JWKS is fetched. A kid that resolves to no key in the set fails the signature verdict alone, with a reason naming the kid it could not place. The other verdicts need no key and are reported on their own: the condition hashes are recomputed and reproduce (the recompute block below), freshness and expiry report their own results, and the companion is absent because none was transmitted, exactly as on vector 23. insumer-verify 1.9.2 and later report it this way; 1.7.0 to 1.9.1 reported every check failed and the companion unverifiable once the kid failed to resolve.",
+      "note": "Must fail closed. A verifier that falls back to the first key in the document verifies an unknown or forged kid against whichever key is listed first. insumer-verify has refused this from 1.7.0; earlier versions fell back. Needs the jwksUrl option, since key resolution is only exercised when a JWKS is fetched. A kid that resolves to no key in the set fails the signature verdict alone, with a reason naming the kid it could not place. The other verdicts need no key and are reported on their own: the condition hashes are recomputed and reproduce (the recompute block below), freshness and expiry report their own results, and the post-quantum signature is absent because none was transmitted, exactly as on vector 23. insumer-verify 1.9.2 and later report it this way; 1.7.0 to 1.9.1 reported every check failed and the post-quantum signature unverifiable once the kid failed to resolve.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -927,8 +927,8 @@
       }
     },
     "12-pq-companion-v2": {
-      "description": "A v2 attestation carrying the post-quantum companion (pqSig, pqKid) as issued.",
-      "note": "Real response, signed by the production ES256 key and the production ML-DSA-65 key. The pqSig companion signs \"insumer.attestation.pq1\" + \"\\n\" + the exact classical preimage the classical kid selects (ML-DSA-65, FIPS 204; key insumer-attest-pq1 in the JWKS as an RFC 9964 AKP entry). It is reported as a fifth verdict, pq, beside the four classical checks; a refuted companion always fails, an absent or unverifiable one fails only under the verifier's own pqRequiredFrom policy. Expected pq status: verified.",
+      "description": "A v2 attestation carrying the post-quantum signature (pqSig, pqKid) as issued.",
+      "note": "Real response, signed by the production ES256 key and the production ML-DSA-65 key. The post-quantum signature, pqSig, signs \"insumer.attestation.pq1\" + \"\\n\" + the exact classical preimage the classical kid selects (ML-DSA-65, FIPS 204; key insumer-attest-pq1 in the JWKS as an RFC 9964 AKP entry). It is reported as a fifth verdict, pq, beside the four classical checks; a refuted post-quantum signature always fails, an absent or unverifiable one fails only under the verifier's own pqRequiredFrom policy. Expected pq status: verified.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -1006,8 +1006,8 @@
       }
     },
     "13-pq-companion-v1": {
-      "description": "A v1 (frozen bare-JSON scheme) attestation carrying the same post-quantum companion.",
-      "note": "Shows the companion covers the v1 era unchanged: pqSig is over the pq domain tag + the v1 bare JSON.stringify preimage. Real response, v1 key. Expected pq status: verified.",
+      "description": "A v1 (frozen bare-JSON scheme) attestation carrying the same post-quantum signature.",
+      "note": "Shows the post-quantum signature covers the v1 era unchanged: pqSig is over the pq domain tag + the v1 bare JSON.stringify preimage. Real response, v1 key. Expected pq status: verified.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -1087,7 +1087,7 @@
     },
     "14-pq-companion-tampered": {
       "description": "Vector 12 with one byte of pqSig altered.",
-      "note": "The classical signature still verifies (it was not touched); the companion is REFUTED, and a refuted companion fails the artifact regardless of policy or mode. Expected pq status: refuted.",
+      "note": "The classical signature still verifies (it was not touched); the post-quantum signature is REFUTED, and a refuted post-quantum signature fails the artifact regardless of policy or mode. Expected pq status: refuted.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -1157,8 +1157,8 @@
       }
     },
     "15-pq-kid-unresolvable": {
-      "description": "Vector 12 presented with a pqKid that resolves to no key in the JWKS, under a verifier that requires the companion.",
-      "note": "Could-not-check is never a pass: the companion is UNVERIFIABLE. With pqRequiredFrom set to a past date (a live access decision after the verifier's own cutoff), unverifiable fails the artifact; without pqRequiredFrom it would be reported and not fail. Expected pq status: unverifiable.",
+      "description": "Vector 12 presented with a pqKid that resolves to no key in the JWKS, under a verifier that requires the post-quantum signature.",
+      "note": "Could-not-check is never a pass: the post-quantum signature is UNVERIFIABLE. With pqRequiredFrom set to a past date (a live access decision after the verifier's own cutoff), unverifiable fails the artifact; without pqRequiredFrom it would be reported and not fail. Expected pq status: unverifiable.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json",
         "pqRequiredFrom": "2026-09-01T00:00:00Z"
@@ -1230,7 +1230,7 @@
     },
     "16-pq-absent-under-cutoff": {
       "description": "Vector 01 (issued before post-quantum signing existed) presented to a verifier whose cutoff has passed.",
-      "note": "In access mode past pqRequiredFrom, an absent companion fails the artifact: this is the cutoff working. In evidence mode (mode: \"evidence\") the same artifact is never refused; the verifier reports pq absent and, given pqActivatedAt = the anchored binding date 2026-09-01T23:30:53Z, existedAtIssuance: false. Expected pq status: absent.",
+      "note": "In access mode past pqRequiredFrom, an absent post-quantum signature fails the artifact: this is the cutoff working. In evidence mode (mode: \"evidence\") the same artifact is never refused; the verifier reports pq absent and, given pqActivatedAt = the anchored binding date 2026-09-01T23:30:53Z, existedAtIssuance: false. Expected pq status: absent.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json",
         "pqRequiredFrom": "2026-09-01T00:00:00Z"
@@ -1301,7 +1301,7 @@
     },
     "17-pq-jwt-companion": {
       "description": "The JWT-format envelope: the ES256 jwt with its ML-DSA-65 sibling pqJwt.",
-      "note": "pqJwt is a separate compact JWS (alg ML-DSA-65, kid insumer-attest-pq1) over the same claims as jwt; the verifier binds it to jwt by the full claim set (same member names, deeply equal values, compared as parsed JSON and never by bytes), so the companion vouches for every claim read from jwt and cannot be transplanted from another artifact; vectors 24 and 25 are the refused cases. Handing the envelope object {data:{jwt,pqJwt}} to verifyAttestation routes to the JWT path. Expected pq status: verified.",
+      "note": "pqJwt is a separate compact JWS (alg ML-DSA-65, kid insumer-attest-pq1) over the same claims as jwt; the verifier binds it to jwt by the full claim set (same member names, deeply equal values, compared as parsed JSON and never by bytes), so the post-quantum signature vouches for every claim read from jwt and cannot be transplanted from another artifact; vectors 24 and 25 are the refused cases. Handing the envelope object {data:{jwt,pqJwt}} to verifyAttestation routes to the JWT path. Expected pq status: verified.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -2657,7 +2657,7 @@
     },
     "19-missing-kid": {
       "description": "Vector 13 presented with its kid removed.",
-      "note": "Must fail. A response with no kid selects neither a key nor a signing scheme. A verifier that fills the gap, whether with the first key in the JWKS, a positional default, or its own built-in key, checks the artifact against a key the response never named and reports a signature it had no basis to verify. This vector is derived from the v1-signed vector 13 rather than from vector 01 because that is the case a fallback accepts: a v1 artifact verifies under the frozen bare-JSON scheme against the shared EC key, so a verifier that defaults to that scheme and to any available key reports it valid, companion and all. insumer-verify 1.8.0 and 1.8.1 do exactly that; 1.8.2 and later refuse a missing kid on every input path. jwksUrl is pinned so that key selection is the step that fails: with no kid there is nothing to select by. That fails the signature verdict alone, with a reason saying the response carries no kid. The other verdicts need no key and are reported on their own: the condition hashes are recomputed and reproduce (the recompute block below), and freshness and expiry report their own results. The companion was transmitted, but with no kid there is no preimage to rebuild it over, so it is unverifiable, never refuted; without a pqRequiredFrom cutoff that is reported and not refused, as on vector 22. insumer-verify 1.9.2 and later report it this way; 1.8.2 to 1.9.1 reported every check failed once the kid was missing.",
+      "note": "Must fail. A response with no kid selects neither a key nor a signing scheme. A verifier that fills the gap, whether with the first key in the JWKS, a positional default, or its own built-in key, checks the artifact against a key the response never named and reports a signature it had no basis to verify. This vector is derived from the v1-signed vector 13 rather than from vector 01 because that is the case a fallback accepts: a v1 artifact verifies under the frozen bare-JSON scheme against the shared EC key, so a verifier that defaults to that scheme and to any available key reports it valid, post-quantum signature and all. insumer-verify 1.8.0 and 1.8.1 do exactly that; 1.8.2 and later refuse a missing kid on every input path. jwksUrl is pinned so that key selection is the step that fails: with no kid there is nothing to select by. That fails the signature verdict alone, with a reason saying the response carries no kid. The other verdicts need no key and are reported on their own: the condition hashes are recomputed and reproduce (the recompute block below), and freshness and expiry report their own results. The post-quantum signature was transmitted, but with no kid there is no preimage to rebuild it over, so it is unverifiable, never refuted; without a pqRequiredFrom cutoff that is reported and not refused, as on vector 22. insumer-verify 1.9.2 and later report it this way; 1.8.2 to 1.9.1 reported every check failed once the kid was missing.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -2798,7 +2798,7 @@
     },
     "21-trust-under-attest-kid": {
       "description": "Vector 18 presented under insumer-attest-v2, the kid that signs attestations.",
-      "note": "Must fail. The reverse of vector 20: a genuine trust profile relabelled with the attestation kid. The kid resolves to the same EC key, so a verifier that only resolves keys verifies nothing wrong and reports the signature valid; one that binds kids to artifact types refuses it. The companion verdict follows the classical kid, because the companion signs the exact classical preimage the classical kid selects: with the kid rewritten there is no correct preimage to rebuild, so the untouched pqSig cannot verify against anything, and insumer-verify 1.8.3 reports it refuted. The artifact fails on the classical signature regardless of how the companion is reported. Expected pq status: refuted.",
+      "note": "Must fail. The reverse of vector 20: a genuine trust profile relabelled with the attestation kid. The kid resolves to the same EC key, so a verifier that only resolves keys verifies nothing wrong and reports the signature valid; one that binds kids to artifact types refuses it. The post-quantum verdict follows the classical kid, because the post-quantum signature signs the exact classical preimage the classical kid selects: with the kid rewritten there is no correct preimage to rebuild, so the untouched pqSig cannot verify against anything, and insumer-verify 1.8.3 reports it refuted. The artifact fails on the classical signature regardless of how the post-quantum signature is reported. Expected pq status: refuted.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -4071,8 +4071,8 @@
       }
     },
     "22-pq-kid-other-artifact": {
-      "description": "Vector 12 presented with its pqKid changed to insumer-trust-pq1, the companion kid for trust profiles.",
-      "note": "The classical checks pass: sig and kid are untouched. The companion kid resolves, since insumer-trust-pq1 is in the JWKS as an AKP entry over the same ML-DSA-65 key as insumer-attest-pq1, but it names the other artifact type, so the companion is UNVERIFIABLE: a known kid that does not belong to this artifact is a mislabelled companion, not evidence for or against the signature, and it is never re-interpreted under the kid the verifier would have expected. No pqRequiredFrom is pinned, so the artifact is not refused for it; under a cutoff that has passed it would be, exactly as vector 15. Expected pq status: unverifiable.",
+      "description": "Vector 12 presented with its pqKid changed to insumer-trust-pq1, the post-quantum kid for trust profiles.",
+      "note": "The classical checks pass: sig and kid are untouched. The post-quantum kid resolves, since insumer-trust-pq1 is in the JWKS as an AKP entry over the same ML-DSA-65 key as insumer-attest-pq1, but it names the other artifact type, so the post-quantum signature is UNVERIFIABLE: under a known kid that does not belong to this artifact it is mislabelled, and is evidence neither for nor against the classical signature, and it is never re-interpreted under the kid the verifier would have expected. No pqRequiredFrom is pinned, so the artifact is not refused for it; under a cutoff that has passed it would be, exactly as vector 15. Expected pq status: unverifiable.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -4151,7 +4151,7 @@
     },
     "23-unknown-kid-no-jwks": {
       "description": "Vector 01 presented with a kid that names no published key, to a verifier that has not been given a JWKS URL.",
-      "note": "Vector 11 shows an unknown kid failing when the verifier fetches the JWKS. This vector removes the fetch: no jwksUrl is pinned, so insumer-verify falls back to its built-in InsumerAPI key. A kid the verifier cannot place must still fail, and must fail as could-not-verify rather than as forged: nothing about the signature has been shown wrong, the verifier simply has no key or scheme it is entitled to check it under. It must never be resolved by using whatever key is at hand. insumer-verify reports the signature verdict failed with a reason that names the kid it could not place; the reason is the classical verdict's only carrier of the unverifiable-versus-refuted distinction, since the classical checks report a boolean and a reason rather than a status. The condition hashes still reproduce and the companion is absent, as on vector 01.",
+      "note": "Vector 11 shows an unknown kid failing when the verifier fetches the JWKS. This vector removes the fetch: no jwksUrl is pinned, so insumer-verify falls back to its built-in InsumerAPI key. A kid the verifier cannot place must still fail, and must fail as could-not-verify rather than as forged: nothing about the signature has been shown wrong, the verifier simply has no key or scheme it is entitled to check it under. It must never be resolved by using whatever key is at hand. insumer-verify reports the signature verdict failed with a reason that names the kid it could not place; the reason is the classical verdict's only carrier of the unverifiable-versus-refuted distinction, since the classical checks report a boolean and a reason rather than a status. The condition hashes still reproduce and the post-quantum signature is absent, as on vector 01.",
       "recompute": [
         {
           "canonicalEvaluatedCondition": "{\"chainId\":1,\"contractAddress\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"operator\":\"gte\",\"threshold\":\"1\",\"type\":\"token_balance\"}",
@@ -4218,7 +4218,7 @@
     },
     "24-pq-jwt-subject-differs": {
       "description": "The JWT-format envelope of vector 17 with the jwt's sub claim edited; the pqJwt beside it is untouched and genuine.",
-      "note": "Derived from vector 17. Only the sub claim inside jwt was changed (to 0x000000000000000000000000000000000000dEaD); the ES256 signature segment and the whole pqJwt are byte-identical to vector 17. The ES256 signature no longer verifies, and the companion is refuted as well: a pqJwt is bound to its jwt by the full claim set (same member names, deeply equal values), so a genuine companion does not vouch for a jwt whose subject differs from the one it signed. Requires insumer-verify 1.8.6 or later for the pq verdict; earlier releases compared jti, exp and pass only.",
+      "note": "Derived from vector 17. Only the sub claim inside jwt was changed (to 0x000000000000000000000000000000000000dEaD); the ES256 signature segment and the whole pqJwt are byte-identical to vector 17. The ES256 signature no longer verifies, and the post-quantum signature is refuted as well: a pqJwt is bound to its jwt by the full claim set (same member names, deeply equal values), so a genuine pqJwt does not vouch for a jwt whose subject differs from the one it signed. Requires insumer-verify 1.8.6 or later for the pq verdict; earlier releases compared jti, exp and pass only.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -4260,7 +4260,7 @@
     },
     "25-pq-jwt-results-differ": {
       "description": "The JWT-format envelope of vector 17 with results[0].met inverted inside the jwt; the pqJwt beside it is untouched and genuine.",
-      "note": "Derived from vector 17. Only results[0].met inside jwt was inverted; pass, jti, exp and sub are unchanged, and the ES256 signature segment and the whole pqJwt are byte-identical to vector 17. The condition hash still reproduces, because it covers the evaluated condition and not the verdict. The ES256 signature no longer verifies, and the companion is refuted: the full claim set is bound, so the per-condition results a relying party reads from the jwt must be the ones the companion signed. Requires insumer-verify 1.8.6 or later for the pq verdict; earlier releases compared jti, exp and pass only.",
+      "note": "Derived from vector 17. Only results[0].met inside jwt was inverted; pass, jti, exp and sub are unchanged, and the ES256 signature segment and the whole pqJwt are byte-identical to vector 17. The condition hash still reproduces, because it covers the evaluated condition and not the verdict. The ES256 signature no longer verifies, and the post-quantum signature is refuted: the full claim set is bound, so the per-condition results a relying party reads from the jwt must be the ones the pqJwt signed. Requires insumer-verify 1.8.6 or later for the pq verdict; earlier releases compared jti, exp and pass only.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -4302,7 +4302,7 @@
     },
     "26-jwt-format-whole-response": {
       "description": "A format: \"jwt\" response exactly as the API returned it: the attestation with sig, kid, pqSig and pqKid, and beside it the ES256 jwt and its ML-DSA-65 sibling pqJwt.",
-      "note": "Issued 2026-09-20 under an insumer-attest-v2 key, saved verbatim. Vector 17 carries the two tokens alone; this is the whole object a caller actually receives. A verifier given it verifies the attestation and its companion, and the tokens as well, reported as checks.jwt: the ES256 signature of jwt under the same kid, its condition hashes, that it is the token of this attestation (jti, pass, results and exp equal the attestation's), and the pqJwt companion over the full claim set. Requires insumer-verify 1.8.7 or later for the jwt verdict; earlier releases verify the attestation and report nothing about the tokens.",
+      "note": "Issued 2026-09-20 under an insumer-attest-v2 key, saved verbatim. Vector 17 carries the two tokens alone; this is the whole object a caller actually receives. A verifier given it verifies the attestation and its post-quantum signature, and the tokens as well, reported as checks.jwt: the ES256 signature of jwt under the same kid, its condition hashes, that it is the token of this attestation (jti, pass, results and exp equal the attestation's), and the ML-DSA-65 pqJwt over the full claim set. Requires insumer-verify 1.8.7 or later for the jwt verdict; earlier releases verify the attestation and report nothing about the tokens.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -4384,8 +4384,8 @@
       }
     },
     "27-jwt-format-token-edited": {
-      "description": "Vector 26 with the sub claim edited inside data.jwt. The attestation, its signature, its companion and the pqJwt are untouched.",
-      "note": "Derived from vector 26. Only the sub claim inside data.jwt was changed (to 0x000000000000000000000000000000000000dEaD); every other byte of the response is as issued. The attestation still verifies, and its companion still verifies, because neither was touched and neither names the wallet. The response must be refused all the same, at checks.jwt: the wallet is read from the jwt, and the jwt in this response no longer carries a valid signature. A verifier that checks the attestation and stops reports this response valid. Requires insumer-verify 1.8.7 or later.",
+      "description": "Vector 26 with the sub claim edited inside data.jwt. The attestation, its ES256 and post-quantum signatures, and the pqJwt are untouched.",
+      "note": "Derived from vector 26. Only the sub claim inside data.jwt was changed (to 0x000000000000000000000000000000000000dEaD); every other byte of the response is as issued. The attestation still verifies, and its post-quantum signature still verifies, because neither was touched and neither names the wallet. The response must be refused all the same, at checks.jwt: the wallet is read from the jwt, and the jwt in this response no longer carries a valid signature. A verifier that checks the attestation and stops reports this response valid. Requires insumer-verify 1.8.7 or later.",
       "options": {
         "jwksUrl": "https://insumermodel.com/.well-known/jwks.json"
       },
@@ -4467,5 +4467,5 @@
       }
     }
   },
-  "pq_note": "Vectors 01 to 11 carry no companion: 01 to 07 were issued before post-quantum signing existed (2026-08-28), and 08 to 11 derive from vector 01. For all of them a correct run reports pq as absent, which does not fail them unless the runner sets pqRequiredFrom. Vector 16 is vector 01 re-presented under a cutoff, so it carries no companion either. Vectors 12, 13 and 17 are issuer responses from after the anchored binding (2026-09-01T23:30:53Z) and carry the companion as issued; 14 and 15 derive from 12 by altering the companion or its kid. Reading any artifact after the fact is evidence mode: nothing is refused for lacking a companion; the anchored binding date tells the reader whether one could have existed. Vectors 18-23 (added 2026-09-02) cover the trust-profile not-evaluated marker (spec 11.3) and the kid rules a verifier applies since insumer-verify 1.8.2: a missing kid fails, a kid selects only the artifact type it is bound to, an unknown kid with no JWKS supplied is unverifiable rather than refuted, and a pqKid of the other artifact type leaves the companion unverifiable while the classical checks stand. Checks the profile could not evaluate carry evaluated: false and are counted in notEvaluatedCount and totalNotEvaluated, never as failures. Vectors 24 and 25 (added 2026-09-20) derive from vector 17 by editing one claim inside jwt (sub on 24, results[0].met on 25) and leaving the pqJwt untouched: in the JWT format the companion binds the full claim set, so a genuine pqJwt beside a jwt whose claims differ is refuted. They need insumer-verify 1.8.6 or later for that verdict. Vectors 26 and 27 (added 2026-09-20) are a whole format: \"jwt\" response, as issued and with the sub claim edited inside data.jwt: the tokens beside an attestation are verified and bound to it, and reported as checks.jwt (insumer-verify 1.8.7 or later)."
+  "pq_note": "Vectors 01 to 11 carry no post-quantum signature: 01 to 07 were issued before post-quantum signing existed (2026-08-28), and 08 to 11 derive from vector 01. For all of them a correct run reports pq as absent, which does not fail them unless the runner sets pqRequiredFrom. Vector 16 is vector 01 re-presented under a cutoff, so it carries no post-quantum signature either. Vectors 12, 13 and 17 are issuer responses from after the anchored binding (2026-09-01T23:30:53Z) and carry the post-quantum signature as issued; 14 and 15 derive from 12 by altering the post-quantum signature or its kid. Reading any artifact after the fact is evidence mode: nothing is refused for lacking a post-quantum signature; the anchored binding date tells the reader whether one could have existed. Vectors 18-23 (added 2026-09-02) cover the trust-profile not-evaluated marker (spec 11.3) and the kid rules a verifier applies since insumer-verify 1.8.2: a missing kid fails, a kid selects only the artifact type it is bound to, an unknown kid with no JWKS supplied is unverifiable rather than refuted, and a pqKid of the other artifact type leaves the post-quantum signature unverifiable while the classical checks stand. Checks the profile could not evaluate carry evaluated: false and are counted in notEvaluatedCount and totalNotEvaluated, never as failures. Vectors 24 and 25 (added 2026-09-20) derive from vector 17 by editing one claim inside jwt (sub on 24, results[0].met on 25) and leaving the pqJwt untouched: in the JWT format the post-quantum signature binds the full claim set, so a genuine pqJwt beside a jwt whose claims differ is refuted. They need insumer-verify 1.8.6 or later for that verdict. Vectors 26 and 27 (added 2026-09-20) are a whole format: \"jwt\" response, as issued and with the sub claim edited inside data.jwt: the tokens beside an attestation are verified and bound to it, and reported as checks.jwt (insumer-verify 1.8.7 or later)."
 }
